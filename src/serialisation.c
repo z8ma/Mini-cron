@@ -132,3 +132,32 @@ void freecmd(struct command *cbuf) {
         free(cbuf->cmd);
     }
 }
+
+int executecmd(struct command *cbuf) {
+    pid_t p = fork();
+    if (p < 0) {
+        exit(1);
+    } else if (p == 0) {
+        if (cbuf->type == SI_TYPE) {
+            char **exec_argv = malloc((cbuf->args.argc + 1) * sizeof(char *));
+            for (uint32_t i = 0; i < cbuf->args.argc; i++) {
+                exec_argv[i] = (char *)cbuf->args.argv[i].data;
+            }
+            exec_argv[cbuf->args.argc] = NULL;
+            execvp(exec_argv[0], exec_argv);
+
+            perror("execvp");
+            free(exec_argv);
+            exit(1);
+        } else if (cbuf->type == SQ_TYPE) {
+            for (uint32_t i = 0; i < cbuf->nbcmds; i++) {
+                executecmd(cbuf->cmd + i);
+            }
+            exit(0);
+        }
+        return 1;
+    } else {
+        wait(NULL);
+    }
+    return 0;
+}
