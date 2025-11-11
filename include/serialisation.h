@@ -1,16 +1,20 @@
 #include <stdint.h>
 
-
 struct string {
     uint32_t length;
     uint8_t *data;
+};
+
+struct timing {
+    uint64_t minutes;
+    uint32_t hours;
+    uint8_t daysofweek;
 };
 
 struct arguments {
     uint32_t argc;
     struct string *argv;
 };
-
 
 struct command {
     uint16_t type;
