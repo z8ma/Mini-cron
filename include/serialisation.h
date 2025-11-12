@@ -27,6 +27,7 @@ int readstring(int fd, struct string *sbuf);
 void freestring(struct string *sbuf);
 
 int readtiming(int fd, struct timing *tbuf);
+int is_it_time(struct timing *tbuf);
 
 int readarguments(int fd, struct arguments *abuf);
 void freearguments(struct arguments *abuf);
