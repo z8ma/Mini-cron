@@ -1,9 +1,5 @@
 #include <stdint.h>
-
-struct string {
-    uint32_t length;
-    uint8_t *data;
-};
+#include "string.h"
 
 struct timing {
     uint64_t minutes;
