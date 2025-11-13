@@ -1,33 +1,15 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <dirent.h>
+#include "command.h"
+#include "arguments.h"
+
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <dirent.h>
 #include <string.h>
-#include "serialisation.h"
+#include <stdio.h>
+#include <fcntl.h>
 
-
-int readarguments(int fd, struct arguments *abuf) {
-    if (read(fd, abuf, sizeof(uint32_t)) < 0) return 1;
-
-    abuf->argc = be32toh(abuf->argc);
-    abuf->argv = malloc((abuf->argc) * sizeof(struct string));
-    for (size_t i = 0; i < abuf->argc; i++) {
-        if (readstring(fd, &abuf->argv[i]) < 0) return 1;
-    }
-
-    return 0;
-}
-
-void freearguments(struct arguments *abuf) {
-    for(int i = 0; i < abuf->argc; i++) {
-        freestring(&(abuf->argv[i]));
-    }
-    free((abuf)->argv);
-}
 
 void insertion_sort(char **arr, size_t n) {
     for (size_t i = 1; i < n; i++) {
@@ -61,12 +43,12 @@ int readcmd(char *filename, struct command *cbuf) {
         snprintf(path, strlen(filename) + 6, "%s/argv", filename);
         fd = open(path, O_RDONLY);
         if (fd < 0) return 1;
-        int ret = readarguments(fd, &(cbuf->args));
+        int ret = readarguments(fd, &(cbuf->content.args));
         close(fd);
         return ret;
     } else if (cbuf->type == SQ_TYPE) {
         struct dirent *entry;
-        cbuf->nbcmds = 0;
+        cbuf->content.combined.nbcmds = 0;
         char **names = NULL;
 
         DIR *dirp = opendir(filename);
@@ -74,19 +56,19 @@ int readcmd(char *filename, struct command *cbuf) {
 
         while ((entry = readdir(dirp))) {
             if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 && (entry->d_type == DT_DIR)) {
-                names = realloc(names, (cbuf->nbcmds + 1) * sizeof(char *));
-                names[cbuf->nbcmds++] = (entry->d_name);
+                names = realloc(names, (cbuf->content.combined.nbcmds + 1) * sizeof(char *));
+                names[cbuf->content.combined.nbcmds++] = (entry->d_name);
             }
         }
 
-        if (cbuf->nbcmds == 0) return 1;
-        cbuf->cmd = malloc(cbuf->nbcmds * sizeof(struct command));
-        if (!cbuf->cmd) return 1;
-        insertion_sort(names, cbuf->nbcmds);
+        if (cbuf->content.combined.nbcmds == 0) return 1;
+        cbuf->content.combined.cmds = malloc(cbuf->content.combined.nbcmds * sizeof(struct command));
+        if (!cbuf->content.combined.cmds) return 1;
+        insertion_sort(names, cbuf->content.combined.nbcmds);
 
-        for (int i = 0; i < cbuf->nbcmds; i++) {
+        for (int i = 0; i < cbuf->content.combined.nbcmds; i++) {
             snprintf(path, strlen(filename) + strlen(names[i]) + 2, "%s/%s", filename, names[i]);
-            if (readcmd(path, (cbuf->cmd) + i) != 0) {
+            if (readcmd(path, (cbuf->content.combined.cmds) + i) != 0) {
                 free(names);
                 closedir(dirp);
                 return 1;
@@ -101,14 +83,15 @@ int readcmd(char *filename, struct command *cbuf) {
 
 void freecmd(struct command *cbuf) {
     if (cbuf->type == SI_TYPE) {
-        freearguments(&(cbuf->args));
+        freearguments(&(cbuf->content.args));
     } else if (cbuf->type == SQ_TYPE) {
-        for(int i = 0; i < cbuf->nbcmds; i++) {
-            freecmd(&(cbuf->cmd[i]));
+        for(int i = 0; i < cbuf->content.combined.nbcmds; i++) {
+            freecmd(&(cbuf->content.combined.cmds[i]));
         }
-        free(cbuf->cmd);
+        free(cbuf->content.combined.cmds);
     }
 }
+
 
 int executecmd(struct command *cbuf) {
     pid_t p = fork();
@@ -116,19 +99,19 @@ int executecmd(struct command *cbuf) {
         exit(1);
     } else if (p == 0) {
         if (cbuf->type == SI_TYPE) {
-            char **exec_argv = malloc((cbuf->args.argc + 1) * sizeof(char *));
-            for (uint32_t i = 0; i < cbuf->args.argc; i++) {
-                exec_argv[i] = (char *)cbuf->args.argv[i].data;
+            char **exec_argv = malloc((cbuf->content.args.argc + 1) * sizeof(char *));
+            for (uint32_t i = 0; i < cbuf->content.args.argc; i++) {
+                exec_argv[i] = (char *)cbuf->content.args.argv[i].data;
             }
-            exec_argv[cbuf->args.argc] = NULL;
+            exec_argv[cbuf->content.args.argc] = NULL;
             execvp(exec_argv[0], exec_argv);
 
             perror("execvp");
             free(exec_argv);
             exit(1);
         } else if (cbuf->type == SQ_TYPE) {
-            for (uint32_t i = 0; i < cbuf->nbcmds; i++) {
-                executecmd(cbuf->cmd + i);
+            for (uint32_t i = 0; i < cbuf->content.combined.nbcmds; i++) {
+                executecmd(cbuf->content.combined.cmds + i);
             }
             exit(0);
         }
