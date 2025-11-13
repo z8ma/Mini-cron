@@ -1,11 +1,7 @@
 #include <stdint.h>
 #include "string.h"
 
-struct timing {
-    uint64_t minutes;
-    uint32_t hours;
-    uint8_t daysofweek;
-};
+
 
 struct arguments {
     uint32_t argc;
