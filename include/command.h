@@ -20,7 +20,7 @@ struct command {
 
 int readcmd(char *path, struct command *cbuf);
 void freecmd(struct command *cbuf);
-int executecmd(struct command *cbuf);
+void executecmd(struct command *cbuf);
 
 #define SI_TYPE 0X5349  // 'SI'
 #define SQ_TYPE 0X5351  // 'SQ'

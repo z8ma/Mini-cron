@@ -1,7 +1,8 @@
 #include "arguments.h"
-#include "string.h"
+#include "string_uint.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 
 
@@ -22,4 +23,17 @@ void freearguments(struct arguments *abuf) {
         freestring(&(abuf->argv[i]));
     }
     free((abuf)->argv);
+}
+
+void executearg(struct arguments *abuf) {
+    char **exec_argv = malloc((abuf->argc + 1) * sizeof(char *));
+    for (uint32_t i = 0; i < abuf->argc; i++) {
+        exec_argv[i] = (char *)abuf->argv[i].data;
+    }
+    exec_argv[abuf->argc] = NULL;
+    execvp(exec_argv[0], exec_argv);
+
+    perror("execvp");
+    free(exec_argv);
+    exit(1);
 }
