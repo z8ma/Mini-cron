@@ -1,6 +1,7 @@
 #include "command.h"
 #include "timing.h"
-
+#include<stdlib.h>
+#include<stdio.h>
 #include <unistd.h>
 #include <limits.h>
 #include <getopt.h>
@@ -76,14 +77,14 @@ int main(int argc, char *argv[])
             {
                 chdir(entry->d_name);
                 int fd_timing = open("timing", O_RDONLY);
-                struct timing *time;
+                struct timing *time=NULL;
                 if (readtiming(fd_timing, time))
                 {
                     exit(1);
                 }
                 if (is_it_time(time))
                 {
-                    struct command *cmd;
+                    struct command *cmd=NULL;
                     if (readcmd("cmd", cmd))
                     {
                         exit(1);
