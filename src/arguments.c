@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 
 int readarguments(int fd, struct arguments *abuf) {
@@ -24,15 +25,26 @@ void freearguments(struct arguments *abuf) {
     free((abuf)->argv);
 }
 
-void executearg(struct arguments *abuf) {
-    char **exec_argv = malloc((abuf->argc + 1) * sizeof(char *));
-    for (uint32_t i = 0; i < abuf->argc; i++) {
-        exec_argv[i] = (char *)abuf->argv[i].data;
-    }
-    exec_argv[abuf->argc] = NULL;
-    execvp(exec_argv[0], exec_argv);
+int executearg(struct arguments *abuf) {
+    pid_t p = fork();
+    if (p == 0) {
+        char **exec_argv = malloc((abuf->argc + 1) * sizeof(char *));
+        for (uint32_t i = 0; i < abuf->argc; i++) {
+            exec_argv[i] = (char *)abuf->argv[i].data;
+        }
+        exec_argv[abuf->argc] = NULL;
+        execvp(exec_argv[0], exec_argv);
 
-    perror("execvp");
-    free(exec_argv);
-    exit(1);
+        perror("execvp");
+        free(exec_argv);
+        exit(1);
+    } else {
+        int status;
+        wait(&status);
+        if (WIFEXITED(status)) {
+            return WEXITSTATUS(status);
+        }
+        return 1;
+    }
+    
 }

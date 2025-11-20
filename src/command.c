@@ -93,21 +93,27 @@ void freecmd(struct command *cbuf) {
 }
 
 
-void executecmd(struct command *cbuf) {
+int executecmd(struct command *cbuf) {
     pid_t p = fork();
     if (p < 0) {
         exit(1);
     } else if (p == 0) {
         if (cbuf->type == SI_TYPE) {
-            executearg(&cbuf->content.args);
+            exit(executearg(&cbuf->content.args));
         } else if (cbuf->type == SQ_TYPE) {
+            int finalexit = 0;
             for (uint32_t i = 0; i < cbuf->content.combined.nbcmds; i++) {
-                executecmd(cbuf->content.combined.cmds + i);
+                finalexit = executecmd(cbuf->content.combined.cmds + i);
             }
-            exit(0);
+            exit(finalexit);
         }
         exit(1);
     } else {
-        wait(NULL);
+        int status;
+        wait(&status);
+        if (WIFEXITED(status)) {
+            return WEXITSTATUS(status);
+        }
+        return 1;
     }
 }
