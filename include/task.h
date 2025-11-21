@@ -6,11 +6,9 @@
 
 
 struct task {
+    char id[200];
     struct command cmd;
     struct timing time;
-    int fd_out;
-    int fd_err;
-    int fd_times_exitcodes;
 };
 
 

@@ -26,7 +26,6 @@ void insertion_sort(char **arr, size_t n) {
 int readcmd(char *filename, struct command *cbuf) {
     struct stat st;
     ssize_t fd;
-    char typename[2];
     char path[PATH_MAX];
     
     if (lstat(filename, &st) < 0) return 1;
@@ -35,8 +34,8 @@ int readcmd(char *filename, struct command *cbuf) {
     snprintf(path, strlen(filename) + 6, "%s/type", filename);
     fd = open(path, O_RDONLY);
     if (fd < 0) return 1;
-    if (read(fd, typename, 2) < 0) return 1;
-    cbuf->type = (typename[0]<<8) + typename[1];
+    if (read(fd, &(cbuf->type), sizeof(uint16_t)) < 0) return 1;
+    cbuf->type = be16toh(cbuf->type);
     close(fd);
 
     if (cbuf->type == SI_TYPE) {
