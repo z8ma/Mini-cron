@@ -14,8 +14,9 @@ build/%.o: src/%.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 clean:
-	rm -f build/*.o
+	rm -rf build/
+	rm -f erraid
+	rm -rf .sy5-2025-2026-projet-erraid-autotests.nosync/
+
 distclean: clean
 	rm -rf build
-
-	
