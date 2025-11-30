@@ -3,7 +3,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <limits.h>
 #include <getopt.h>
 #include <string.h>
 #include <dirent.h>
@@ -96,7 +95,6 @@ int main(int argc, char *argv[]) {
     struct dirent *entry;
     char path_task[PATH_MAX];
     struct stat st;
-    struct task t;
     while (1) {
         sleep_until_next_minute();
         DIR *dirp = opendir("tasks");
@@ -111,9 +109,7 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             if (S_ISDIR(st.st_mode) && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-                readtask(entry->d_name, &t);
-                executetask(&t);
-                freetask(&t);
+                executetask(path_task);
             }
         }
         closedir(dirp);

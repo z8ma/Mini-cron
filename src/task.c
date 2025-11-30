@@ -4,88 +4,68 @@
 
 #include <unistd.h>
 #include <stdlib.h>
-#include <dirent.h>
-#include <string.h>
+#include <limits.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <time.h>
-#include <time.h>
-#include <unistd.h>
 
-
-int readtask(char *taskname, struct task *tbuf) {
-    snprintf(tbuf->id, 200,"%s", taskname);
-    char path[PATH_MAX] = "tasks";
-    size_t len = strlen(path);
-    snprintf(path + len, sizeof(path) -  len, "/%s", tbuf->id);
-    len = strlen(path);
-
-    snprintf(path + len, sizeof(path) -  len, "/%s", "cmd");
-    if (readcmd(path, &(tbuf->cmd)) == 1) {
-        perror("readcmd");
-        return 1;
-    } 
-
-    snprintf(path + len, sizeof(path) -  len, "/%s", "timing");
-    int fd_timing = open(path, O_RDONLY);
-    if (fd_timing < 0) {
-        perror("open");
-        return 1;
-    }
-    if (readtiming(fd_timing, &(tbuf->time)) == 1) {
-        perror("readtiming");
-        close(fd_timing);
-        return 1;
-    }
-    close(fd_timing);
-
+int readtask_timing(char *path_task, struct timing *task_timing) {
+    char path_task_timing[PATH_MAX];
+    snprintf(path_task_timing, sizeof(path_task_timing), "%s/timing", path_task);
+    ssize_t fd_timing = open(path_task_timing, O_RDONLY);
+    if (fd_timing < 0) return 1;
+    if (readtiming(fd_timing, task_timing) == 1) return 1;
     return 0;
 }
 
-void freetask(struct task *tbuf) {
-    freecmd(&(tbuf->cmd));
+int readtask_command(char *path_task, struct command *task_command) {
+    char path_task_command[PATH_MAX];
+    snprintf(path_task_command, sizeof(path_task_command), "%s/cmd", path_task);
+    if (readcmd(path_task_command, task_command) == 1) return 1;
+    return 0;
 }
 
+int redirectstdout(char *path_task) {
+    char path_task_stdout[PATH_MAX];
+    snprintf(path_task_stdout, sizeof(path_task_stdout), "%s/stdout", path_task);
+    ssize_t fd_stdout = open(path_task_stdout, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    if (fd_stdout < 0) return 1;
+    if (dup2(fd_stdout, STDOUT_FILENO) == -1) return 1;
+    close(fd_stdout);
+    return 0;
+}
 
-int executetask(struct task *tbuf) {
-    if (is_it_time(&(tbuf->time))){
-        char path[PATH_MAX] = "tasks";
-        size_t len = strlen(path);
-        snprintf(path + len, sizeof(path) -  len, "/%s", tbuf->id);
-        len = strlen(path);
+int redirectstderr(char *path_task) {
+    char path_task_stderr[PATH_MAX];
+    snprintf(path_task_stderr, sizeof(path_task_stderr), "%s/stderr", path_task);
+    ssize_t fd_stderr = open(path_task_stderr, O_WRONLY | O_TRUNC| O_CREAT, 0644);
+    if (fd_stderr < 0) return 1;
+    if (dup2(fd_stderr, STDERR_FILENO) == -1) return 1;
+    close(fd_stderr);
+    return 0;
+}
 
-        snprintf(path + len, sizeof(path) -  len, "/%s", "stdout");
-        ssize_t fd_out = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd_out < 0) {
-            perror("open");
-            return 1;
-        }
+int writetask_times_exitcodes(char *path_task, uint16_t exitcodes) {
+    uint64_t now = htobe64(difftime(time(NULL), 0));
+    char path_task_times_exitcodes[PATH_MAX];
+    snprintf(path_task_times_exitcodes, sizeof(path_task_times_exitcodes), "%s/times-exitcodes", path_task);
+    ssize_t fd_times_exitcodes = open(path_task_times_exitcodes, O_WRONLY | O_APPEND);
+    if (fd_times_exitcodes < 0) return 1;
+    if (write(fd_times_exitcodes, &now, sizeof(uint64_t)) < 0) return 1;
+    if (write(fd_times_exitcodes, &exitcodes, sizeof(uint16_t)) < 0) return 1;
+    return 0;
+}
 
-        snprintf(path + len, sizeof(path) -  len, "/%s", "stderr");
-        ssize_t fd_err = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd_err < 0) {
-            perror("open");
-            return 1;
-        }
-
-        snprintf(path + len, sizeof(path) -  len, "/%s", "times-exitcodes");
-        ssize_t fd_times_exitcodes = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-        if (fd_times_exitcodes < 0) {
-            perror("open");
-            return 1;
-        }
-        dup2(fd_out, STDOUT_FILENO);
-        dup2(fd_err, STDERR_FILENO);
-        int ret = executecmd(&(tbuf->cmd));
-        uint64_t now = htobe64(time(NULL));
-        uint16_t exitcodes = htobe16(ret);
-        if (write(fd_times_exitcodes, &now, sizeof(uint64_t)) != sizeof(uint64_t)) {
-            return -1;
-        }
-        if (write(fd_times_exitcodes, &exitcodes, sizeof(uint16_t)) != sizeof(uint16_t)) {
-            return -1;
-        }
-        return ret;
+int executetask(char *path_task) {
+    struct timing task_timing;
+    if (readtask_timing(path_task, &task_timing) == 1) return 1;
+    if (is_it_time(&task_timing) == 1) {
+        struct command task_command;
+        if (readtask_command(path_task, &task_command) == 1) return 1;
+        if (redirectstdout(path_task) == 1) return 1;
+        if (redirectstderr(path_task) == 1) return 1;
+        if (writetask_times_exitcodes(path_task, htobe16(executecmd(&task_command))) == 1) return 1;
+        freecmd(&task_command);
     }
-    return -1;
+    return 0;
 }

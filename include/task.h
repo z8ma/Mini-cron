@@ -5,16 +5,11 @@
 #include "timing.h"
 
 
-struct task {
-    char id[200];
-    struct command cmd;
-    struct timing time;
-};
-
-
-
-int readtask(char *path, struct task *tbuf);
-void freetask(struct task *tbuf);
-int executetask(struct task *tbuf);
+int readtask_timing(char *path_task, struct timing *task_timing);
+int readtask_command(char *path_task, struct command *task_command);
+int redirectstdout(char *path_task);
+int redirectstderr(char *path_task);
+int writetask_times_exitcodes(char *path_task, uint16_t exitcodes);
+int executetask(char *path_task);
 
 #endif
