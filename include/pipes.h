@@ -1,3 +1,4 @@
+#include <stddef.h>
 #ifndef PIPES_H
 #define PIPES_H
 
