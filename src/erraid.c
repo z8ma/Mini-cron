@@ -1,5 +1,4 @@
 #include "task.h"
-#include "pipes.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -85,19 +84,15 @@ int main(int argc, char *argv[])
         }
     }
 
-    char *pipes_dir = get_default_pipes_dir(run_dir);
-    if (!pipes_dir)
+    if (mkfifo("erraid-request-pipe", 0644) < 0)
     {
-        return 1;
+        perror("mkfifo");
     }
 
-    if (create_named_pipes(pipes_dir) < 0)
+    if (mkfifo("erraid-reply-pipe", 0644) < 0)
     {
-        free(pipes_dir);
-        return 1;
+        perror("mkfifo");
     }
-
-    free(pipes_dir);
 
     pid_t p = fork();
     if (p < 0)
