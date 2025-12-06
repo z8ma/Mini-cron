@@ -144,7 +144,11 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
                 if (S_ISDIR(st.st_mode) && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-                    executetask(path_task);
+                    p = fork();
+                    if (p == 0) {
+                        executetask(path_task);
+                        return 0;
+                    }
                 }
             }
             closedir(dirp);
