@@ -30,7 +30,7 @@ void freearguments(struct arguments *abuf)
     free((abuf)->argv);
 }
 
-int executearg(struct arguments *abuf)
+uint16_t executearg(struct arguments *abuf)
 {
     pid_t p = fork();
     if (p == 0)
@@ -53,8 +53,8 @@ int executearg(struct arguments *abuf)
         wait(&status);
         if (WIFEXITED(status))
         {
-            return WEXITSTATUS(status);
+            return (uint16_t) WEXITSTATUS(status);
         }
-        return 1;
+        return 0xffff;
     }
 }
