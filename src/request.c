@@ -1,6 +1,7 @@
 #include "request.h"
 #include "arguments.h"
 #include "task.h"
+#include "reply.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -9,7 +10,38 @@
 #include <stdio.h>
 
 
-void insertion_sort(char **arr, size_t n) {
+int readrequest(int fdrequest, struct request *rbuf) {
+    if (read(fdrequest, &(rbuf->opcode), sizeof(uint16_t)) < 0) return 1;
+    switch (rbuf->opcode) {
+        case CR_OPCODE :
+            if (readtiming(fdrequest, &(rbuf->content.cr.task_timing)) == 1) return 1;
+            if (readarguments(fdrequest, &(rbuf->content.cr.content.args)) == 1) return 1;
+            break;
+        case CB_OPCODE :
+            if (readtiming(fdrequest, &(rbuf->content.cr.task_timing)) == 1) return 1;
+            if (read(fdrequest, &(rbuf->content.cr.content.combined.type), sizeof(uint16_t)) < 0) return 1;
+            if (read(fdrequest, &(rbuf->content.cr.content.combined.nbtasks), sizeof(uint32_t)) < 0) return 1;
+            rbuf->content.cr.content.combined.tasksid = malloc(be64toh(rbuf->content.cr.content.combined.nbtasks) * sizeof(uint64_t));
+            if (read(fdrequest, rbuf->content.cr.content.combined.tasksid, be64toh(rbuf->content.cr.content.combined.nbtasks) * sizeof(uint64_t)) < 0) return 1;
+            break;
+        default :
+            if (read(fdrequest, &rbuf->content.taskid, sizeof(uint64_t)) < 0) return 1;
+    }
+    return 0;
+}
+
+void freerequest(struct request *rbuf) {
+    switch (rbuf->opcode) {
+        case CR_OPCODE :
+            freearguments(&(rbuf->content.cr.content.args));
+            break;
+        case CB_OPCODE :
+            free(rbuf->content.cr.content.combined.tasksid);
+            break;
+    }
+}
+
+void insertion_sort2(char **arr, size_t n) {
     for (size_t i = 1; i < n; i++) {
         char *key = arr[i];
         ssize_t j = i - 1;
@@ -28,13 +60,10 @@ void string_to_uint64(uint64_t *n, char *s) {
     }
 }
 
-int handle_list_request(int fdreply) {
-    uint16_t v = OK_ANSTYPE;
-    if (write(fdreply, &v, sizeof(uint16_t)) < 0) return 1;
-    uint32_t nbtasks = 0;
-    uint64_t taskid;
-    struct timing task_timing;
-    struct command task_command;
+int handle_list_request(struct request req, struct reply *rbuf) {
+    rbuf->type = LS_TYPE;
+    rbuf->anstype = OK_ANSTYPE;
+    rbuf->content.list.nbtasks = 0;
 
     char **names = NULL;
     char path_task[PATH_MAX];
@@ -45,114 +74,97 @@ int handle_list_request(int fdreply) {
     struct dirent *entry;
     while ((entry = readdir(dirp))) {
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 && (entry->d_type == DT_DIR)) {
-            names = realloc(names, (nbtasks + 1) * sizeof(char *));
-            names[nbtasks++] = (entry->d_name);
+            names = realloc(names, (rbuf->content.list.nbtasks + 1) * sizeof(char *));
+            names[rbuf->content.list.nbtasks++] = (entry->d_name);
         }
     }
     closedir(dirp);
-    insertion_sort(names, nbtasks);
-    if (write(fdreply, &nbtasks, sizeof(uint32_t)) < 0) return 1;
-    for (int i = 0; i < nbtasks; i++) {
-        string_to_uint64(&taskid, names[i]);
-        if (write(fdreply, &taskid, sizeof(uint64_t)) < 0) return 1;
+
+    insertion_sort2(names, rbuf->content.list.nbtasks);
+    rbuf->content.list.tasks = malloc(rbuf->content.list.nbtasks * sizeof(rbuf->content.list.tasks));
+    for (int i = 0; i < rbuf->content.list.nbtasks; i++) {
         snprintf(path_task, sizeof(path_task), "tasks/%s", names[i]);
 
-        readtask_timing(path_task, &task_timing);
-        if (write(fdreply, &task_timing, sizeof(struct timing)) < 0) return 1;
-
-        readtask_command(path_task, &task_command);
-        if (write(fdreply, &task_command, sizeof(task_command)) < 0) return 1;
+        string_to_uint64(&((rbuf->content.list.tasks + i)->tasksid), names[i]);
+        readtask_timing(path_task, &((rbuf->content.list.tasks + i)->task_timing));
+        readtask_command(path_task,  &((rbuf->content.list.tasks + i)->task_command));
     }
-    freecmd(&task_command);
     return 0;
 }
 
-int handle_creat_request(int fdrequest, int fdreply) {
-    uint16_t v = OK_ANSTYPE;
-    if (write(fdreply, &v, sizeof(uint16_t)) < 0) return 1;
-    struct timing newtask_timing;
-    struct arguments newtask_command;
-    readtiming(fdrequest, &newtask_timing);
-    readarguments(fdrequest, &newtask_command);
+int handle_creat_request(struct request req, struct reply *rbuf) {
+    rbuf->type = DE_TYPE;
+    rbuf->anstype = OK_ANSTYPE;
     // TODO fonction qui créer une tache dans task.h et renvoie l'id de cette tache
-    freearguments(&newtask_command);
     return 0;
 }
 
-int handle_combine_request(int fdrequest, int fdreply) {
-    uint16_t v; //depend de la fonction à faire
-    struct timing newtask_timing;
-    uint16_t type;
-    uint32_t nbtasks;
-
-    readtiming(fdrequest, &newtask_timing);
-    read(fdrequest, &type, sizeof(uint32_t));
-    nbtasks = be32toh(nbtasks);
-    uint64_t tasks[nbtasks];
-    for (int i =0; i < nbtasks; i++) {
-        read(fdrequest, tasks + i, sizeof(uint64_t));
-    }
+int handle_combine_request(struct request req, struct reply *rbuf) {
+    rbuf->type = DE_TYPE;
     // TODO fonction qui combine des taches dans task.h et renvoie l'id de la nouvelle tache
     return 0;
 }
 
-int handle_remove_request(int fdrequest, int fdreply) {
-    uint16_t v; //depend de la fonction à faire
-    uint16_t taskid;
-    read(fdrequest, &taskid, sizeof(uint16_t));
-    taskid = be16toh(taskid);
+int handle_remove_request(struct request req, struct reply *rbuf) {
+    rbuf->type = DE_TYPE;
+    char path_task[PATH_MAX];
+    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
     // TODO fonction qui supprime une tache dans task.h et renvoie si la supreesion à échoué ou non
     return 0;
 }
 
-int handle_times_exitcodes_request(int fdrequest, int fdreply) {
-    return 1;
+int handle_times_exitcodes_request(struct request req, struct reply *rbuf) {
+    char path_task[PATH_MAX];
+    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
+    // TODO fonction qui affecte à un tableau de times_ecxitcodes dans task.h
+    return 0;
 }
 
-int handle_stdout_request(int fdrequest, int fdreply) {
-    return 1;
+int handle_stdout_request(struct request req, struct reply *rbuf) {
+    char path_task[PATH_MAX];
+    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
+    // TODO fonction qui affecte à un pointeur de string le stdout du taskid dans task.h
+    return 0;
 }
 
-int handle_stderr_request(int fdrequest, int fdreply) {
-    return 1;
+int handle_stderr_request(struct request req, struct reply *rbuf) {
+    char path_task[PATH_MAX];
+    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
+    // TODO fonction qui affecte à un pointeur de string le stdout du taskid dans task.h
+    return 0;
 }
-
-int handle_terminate_request(int fdrequest, int fdreply) {
-    return 1;
-}
-
 
 int handle_request(int fdrequest, int fdreply) {
-    uint16_t opcode;
-    if (read(fdrequest, &opcode, sizeof(uint16_t)) < 0) {
-        return 1;
-    }
-
-    switch (opcode) {
+    struct request req;
+    struct reply rep;
+    if (readrequest(fdrequest, &req) == 1) return 1;
+    switch (req.opcode) {
         case LS_OPCODE :
-            handle_list_request(fdreply);
+            handle_list_request(req, &rep);
             break;
         case CR_OPCODE :
-            handle_creat_request(fdrequest, fdreply);
+            handle_creat_request(req, &rep);
             break;
         case CB_OPCODE :
-            handle_combine_request(fdrequest, fdreply);
+            handle_combine_request(req, &rep);
             break;
         case RM_OPCODE :
-            handle_remove_request(fdrequest, fdreply);
+            handle_remove_request(req, &rep);
             break;
         case TX_OPCODE :
-            handle_times_exitcodes_request(fdrequest, fdreply);
+            handle_times_exitcodes_request(req, &rep);
             break;
         case SO_OPCODE :
-            handle_stdout_request(fdrequest, fdreply);
+            handle_stdout_request(req, &rep);
             break;
         case SE_OPCODE :
-            handle_stderr_request(fdrequest, fdreply);  
+            handle_stderr_request(req, &rep);  
             break;
         case TM_OPCODE :
             exit(0);
             break;
     }
+    if (writereply(fdreply, &rep) == 1) return 1;
+    freerequest(&req);
     return 0;
 }

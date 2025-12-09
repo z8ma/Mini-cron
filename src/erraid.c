@@ -1,4 +1,5 @@
 #include "task.h"
+#include "request.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -153,7 +154,7 @@ int main(int argc, char *argv[]) {
             }
             closedir(dirp);
         } else {
-            //TODO lire fd_pipe_request executer la requete puis écrire dans fd_pipe_reply
+            handle_request(fd_pipe_request, fd_pipe_reply);
         }
     }
     return 0;
