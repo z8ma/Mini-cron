@@ -2,6 +2,31 @@
 #define REQUEST_H
 
 
+#include "arguments.h"
+#include "timing.h"
+
+struct combine_request {
+    uint16_t type;
+    uint32_t nbtasks;
+    uint64_t *tasksid;
+};
+
+struct create_request {
+    struct timing task_timing;
+    union {
+        struct arguments args;
+        struct combine_request combined;
+    } content;
+};
+
+struct request {
+    uint16_t opcode;
+    union {
+        struct create_request cr;
+        uint64_t taskid;
+    } content;
+};
+
 int handle_request(int fdrequest, int fdreply);
 
 #define LS_OPCODE 0x4c53 // 'LS'
@@ -12,8 +37,5 @@ int handle_request(int fdrequest, int fdreply);
 #define SO_OPCODE 0x534f // 'SO'
 #define SE_OPCODE 0x5345 // 'SE'
 #define TM_OPCODE 0x4b49 // 'KI' surement pour kill
-
-#define OK_ANSTYPE 0x4f4b // 'OK'
-#define ER_ANSTYPE 0x4552 // 'ER'
 
 #endif
