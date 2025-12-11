@@ -9,6 +9,21 @@
 #include <fcntl.h>
 #include <time.h>
 
+int readtask(int fd, struct task *tbuf){
+    if (read(fd, &(tbuf->taskid), sizeof(uint64_t)) < 0) return 1;
+    if (readtiming(fd, &(tbuf->task_timing)) == 1) return 1;
+    if (readcmd_fd(fd, &(tbuf->task_command)) == 1) return 1;
+    return 0;
+}
+
+int writetask(int fd, struct task *tbuf){
+    if (write(fd, &(tbuf->taskid), sizeof(uint64_t)) < 0) return 1;
+    if (writetiming(fd, &(tbuf->task_timing)) == 1) return 1;
+    if (writecmd(fd, &(tbuf->task_command)) == 1) return 1;
+    return 0;
+}
+
+
 int readtask_timing(char *path_task, struct timing *task_timing) {
     char path_task_timing[PATH_MAX];
     snprintf(path_task_timing, sizeof(path_task_timing), "%s/timing", path_task);
@@ -21,7 +36,7 @@ int readtask_timing(char *path_task, struct timing *task_timing) {
 int readtask_command(char *path_task, struct command *task_command) {
     char path_task_command[PATH_MAX];
     snprintf(path_task_command, sizeof(path_task_command), "%s/cmd", path_task);
-    if (readcmd(path_task_command, task_command) == 1) return 1;
+    if (readcmd_path(path_task_command, task_command) == 1) return 1;
     return 0;
 }
 

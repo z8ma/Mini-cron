@@ -11,6 +11,7 @@ struct string {
 };
 
 int readstring(int fd, struct string *sbuf);
+int writestring(int fd, struct string *sbuf);
 void freestring(struct string *sbuf);
 
 #endif

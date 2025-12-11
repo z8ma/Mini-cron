@@ -10,6 +10,7 @@ struct timing {
 };
 
 int readtiming(int fd, struct timing *tbuf);
+int writetiming(int fd, struct timing *tbuf);
 int is_it_time(struct timing *tbuf);
 
 #endif
