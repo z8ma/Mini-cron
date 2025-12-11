@@ -100,6 +100,8 @@ int handle_stdout_request(struct request req, struct reply *rbuf) {
     char path_task[PATH_MAX];
     snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
     // TODO fonction qui affecte à un pointeur de string le stdout du taskid dans task.h
+    int fd = open(path_task, O_RDONLY);
+    readstd(fd, &(rbuf->content.output));
     return 0;
 }
 
@@ -107,6 +109,8 @@ int handle_stderr_request(struct request req, struct reply *rbuf) {
     char path_task[PATH_MAX];
     snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
     // TODO fonction qui affecte à un pointeur de string le stdout du taskid dans task.h
+    int fd = open(path_task, O_RDONLY);
+    readstd(fd, &(rbuf->content.output));
     return 0;
 }
 

@@ -13,6 +13,7 @@ struct task{
 int readtask(int fd, struct task *tbuf);
 int readtask_timing(char *path_task, struct timing *task_timing);
 int readtask_command(char *path_task, struct command *task_command);
+int readstd(int fd,struct string *output);
 int writetask(int fd, struct task *tbuf);
 int executetask(char *path_task);
 

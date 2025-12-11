@@ -87,4 +87,36 @@ int executetask(char *path_task) {
     int createtask(struct arguments *arg) {
     
 }
+int readstd(int fd, struct string *output) {
+    struct stat st;
+    size_t size;
+    
+    if (fstat(fd, &st) < 0) {
+        perror("erreur fstat");
+        return 1;
+    }
+    size = st.st_size;
+    
+    output->data = NULL;
+    output->length = (uint32_t)size;
+    
+    if (size > 0) {
+        output->data = malloc(size);
+        if (!output->data) {
+            perror("erreur allocation");
+            output->length = 0;
+            return 1; 
+        }
+        
+        if (read(fd, output->data, size) != size) {
+            perror("erreur lecture");
+            free(output->data); 
+            output->data = NULL;
+            output->length = 0;
+            return 1;
+        }
+    }
+    
+    return 0;
+}
 }
