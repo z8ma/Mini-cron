@@ -27,7 +27,9 @@ struct request {
     } content;
 };
 
-int handle_request(int fdrequest, int fdreply);
+int readrequest(int fdrequest, struct request *rbuf);
+int writerequest(int fdrequest, struct request *rbuf);
+void freerequest(struct request *rbuf);
 
 #define LS_OPCODE 0x4c53 // 'LS'
 #define CR_OPCODE 0x4352 // 'CR'

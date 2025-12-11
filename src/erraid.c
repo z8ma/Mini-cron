@@ -1,5 +1,5 @@
 #include "task.h"
-#include "request.h"
+#include "communication.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -96,7 +96,6 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
-    int fd_pipe_reply = open("pipes/erraid-reply-pipe", O_RDONLY | O_NONBLOCK);
 
     pid_t p = fork();
     if (p < 0) {
@@ -128,10 +127,11 @@ int main(int argc, char *argv[]) {
     struct dirent *entry;
     char path_task[PATH_MAX];
     struct stat st;
-    while (1) {
+    
+    //while (1) {
         int action = select_pipe_until_next_minute(fd_pipe_request);
         if (action < 0) {
-            exit(1);
+            return 1;
         } else if (action == 0) {
             DIR *dirp = opendir("tasks");
             if (!dirp) {
@@ -154,8 +154,9 @@ int main(int argc, char *argv[]) {
             }
             closedir(dirp);
         } else {
+            int fd_pipe_reply = open("pipes/erraid-reply-pipe", O_WRONLY);
             handle_request(fd_pipe_request, fd_pipe_reply);
         }
-    }
+    //}
     return 0;
 }
