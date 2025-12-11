@@ -68,4 +68,8 @@ int executetask(char *path_task) {
         freecmd(&task_command);
     }
     return 0;
+
+    int createtask(struct arguments *arg) {
+    
+}
 }
