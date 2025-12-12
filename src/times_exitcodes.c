@@ -14,3 +14,8 @@ int write_times_exitcodes(int fd, struct times_exitcodes *tec, size_t n){
     write(fd, &(tec->exitcode), sizeof(uint16_t));
     return 0;
 }
+
+
+int readtec(int fd, struct times_exitcodes *tec) {
+   
+}

@@ -11,5 +11,6 @@ struct times_exitcodes{
 
 int read_times_exitcodes(int fd, struct times_exitcodes *tec, size_t n);
 int write_times_exitcodes(int fd, struct times_exitcodes *tec, size_t n);
+int readtec(int fd, struct times_exitcodes *tec);
 
 #endif
