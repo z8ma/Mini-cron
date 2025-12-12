@@ -82,13 +82,20 @@ int readcmd_path(char *filename, struct command *cbuf) {
 }
 
 int readcmd_fd(int fd, struct command *cbuf) {
-    if (read(fd, &(cbuf->type), sizeof(uint16_t)) < 0) return 1;
-    if (be16toh(cbuf->type) == SI_TYPE) {
+    if (read(fd, &(cbuf->type), sizeof(uint16_t))!= sizeof(uint16_t)) return 1;
+    cbuf->type = be16toh(cbuf->type);
+    if (cbuf->type== SI_TYPE) {
         if (readarguments(fd, &(cbuf->content.args)) == 1) return 1;
-    } else if (be16toh(cbuf->type) == SQ_TYPE) {
-        if (read(fd, &(cbuf->content.combined.nbcmds), sizeof(uint32_t)) < 0) return 1;
-        cbuf->content.combined.cmds = malloc(be32toh(cbuf->content.combined.nbcmds) * sizeof(struct command));
-        for (int i = 0; i < be32toh(cbuf->content.combined.nbcmds); i++) {
+
+    } else if (cbuf->type == SQ_TYPE) {
+
+        uint32_t nbcmds_be;
+        if (read(fd, &nbcmds_be, sizeof(uint32_t))!= sizeof(uint32_t)) return 1;
+        cbuf->content.combined.nbcmds = be32toh(nbcmds_be);
+        uint32_t host_nbcmds = cbuf->content.combined.nbcmds;
+        cbuf->content.combined.cmds = malloc(host_nbcmds * sizeof(struct command));
+
+        for (int i = 0; i < host_nbcmds; i++) {
             if (readcmd_fd(fd, cbuf->content.combined.cmds + i) == 1) return 1;
         }
     }
@@ -96,12 +103,16 @@ int readcmd_fd(int fd, struct command *cbuf) {
 }
 
 int writecmd(int fd, struct command *cbuf) {
-    if (write(fd, &(cbuf->type), sizeof(uint16_t)) < 0) return 1;
-    if (be16toh(cbuf->type) == SI_TYPE) {
+    uint16_t type_be = htobe16(cbuf->type);
+    if (write(fd, &type_be, sizeof(uint16_t))!= sizeof(uint16_t)) return 1;
+    if (cbuf->type == SI_TYPE) {
         if (writearguments(fd, &(cbuf->content.args)) == 1) return 1;
-    } else if (be16toh(cbuf->type) == SQ_TYPE) {
-        if (write(fd, &(cbuf->content.combined.nbcmds), sizeof(uint32_t)) < 0) return 1;
-        for (int i = 0; i < be32toh(cbuf->content.combined.nbcmds); i++) {
+    } else if (cbuf->type == SQ_TYPE) {
+        uint32_t nbcmds_be = htobe32(cbuf->content.combined.nbcmds);
+        if (write(fd, &nbcmds_be, sizeof(uint32_t)) !=sizeof(uint32_t)) return 1;
+
+        uint32_t host_nbcmds = cbuf->content.combined.nbcmds;
+        for (int i = 0; i < host_nbcmds; i++) {
             if (writecmd(fd, cbuf->content.combined.cmds + i) == 1) return 1;
         }
     }
@@ -109,10 +120,11 @@ int writecmd(int fd, struct command *cbuf) {
 }
 
 void freecmd(struct command *cbuf) {
-    if (be16toh(cbuf->type) == SI_TYPE) {
+    if (cbuf->type == SI_TYPE) {
         freearguments(&(cbuf->content.args));
-    } else if (be16toh(cbuf->type) == SQ_TYPE) {
-        for(int i = 0; i < be32toh(cbuf->content.combined.nbcmds); i++) {
+    } else if (cbuf->type == SQ_TYPE) {
+        uint32_t host_nbcmds = cbuf->content.combined.nbcmds;
+        for(int i = 0; i < host_nbcmds; i++) {
             freecmd(&(cbuf->content.combined.cmds[i]));
         }
         free(cbuf->content.combined.cmds);
@@ -125,11 +137,12 @@ uint16_t executecmd(struct command *cbuf) {
     if (p < 0) {
         exit(1);
     } else if (p == 0) {
-        if (be16toh(cbuf->type) == SI_TYPE) {
+        if (cbuf->type == SI_TYPE) {
             exit(executearg(&cbuf->content.args));
-        } else if (be16toh(cbuf->type) == SQ_TYPE) {
+        } else if (cbuf->type == SQ_TYPE) {
             uint16_t finalexit = 0;
-            for (uint32_t i = 0; i < be32toh(cbuf->content.combined.nbcmds); i++) {
+            uint32_t nbcmds_host = cbuf->content.combined.nbcmds;
+            for (uint32_t i = 0; i < nbcmds_host; i++) {
                 finalexit = executecmd(cbuf->content.combined.cmds + i);
             }
             exit(finalexit);
