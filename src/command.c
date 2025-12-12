@@ -1,6 +1,7 @@
 #include "command.h"
 #include "arguments.h"
 #include "communication.h"
+#include "times_exitcodes.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
