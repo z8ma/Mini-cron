@@ -17,7 +17,7 @@ int write_times_exitcodes(int fd, struct times_exitcodes *tec, size_t n){
 
 
 int readtec(int fd, struct times_exitcodes *tec) {
-    int64_t time_be;
+    uint64_t time_be;
     uint16_t exitcode_be;
 
     if (read(fd, &time_be, sizeof(int64_t)) != sizeof(int64_t)) { return 1; }
