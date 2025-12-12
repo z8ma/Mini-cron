@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <time.h>
+#include <sys/stat.h>
 
 int readtask(int fd, struct task *tbuf){
     if (read(fd, &(tbuf->taskid), sizeof(uint64_t)) < 0) return 1;
@@ -83,10 +84,8 @@ int executetask(char *path_task) {
         freecmd(&task_command);
     }
     return 0;
-
-    int createtask(struct arguments *arg) {
-    
 }
+
 int readstd(int fd, struct string *output) {
     struct stat st;
     size_t size;
@@ -96,9 +95,8 @@ int readstd(int fd, struct string *output) {
         return 1;
     }
     size = st.st_size;
-    
-    output->data = NULL;
-    output->length = (uint32_t)size;
+
+    output->length = htobe32((uint32_t)size);
     
     if (size > 0) {
         output->data = malloc(size);
@@ -119,4 +117,4 @@ int readstd(int fd, struct string *output) {
     
     return 0;
 }
-}
+
