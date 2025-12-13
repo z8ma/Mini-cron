@@ -10,18 +10,24 @@
 #include <unistd.h>
 
 int readreply(int fdreply, struct reply *rbuf, uint16_t opcode) {
-    if (read(fdreply, &(rbuf->anstype), sizeof(uint16_t)) < 0) return 1;
-    if (be16toh(rbuf->anstype) == OK_ANSTYPE) {
+    uint16_t anstype_be;
+    if (read(fdreply, &anstype_be, sizeof(uint16_t)) < 0) return 1;
+    rbuf->anstype = be16toh(anstype_be);
+    if (rbuf->anstype == OK_ANSTYPE) {
         switch(opcode) {
             case LS_OPCODE :
-                if (read(fdreply, &(rbuf->content.list.nbtasks), sizeof(uint32_t)) < 0) return 1;
+                uint32_t nbtasks_be;
+                if (read(fdreply, &nbtasks_be, sizeof(uint32_t)) < 0) return 1;
+                rbuf->content.list.nbtasks = be32toh(nbtasks_be);
                 rbuf->content.list.tasks = malloc(rbuf->content.list.nbtasks * sizeof(struct task));
-                for (int i = 0; i < be32toh(rbuf->content.list.nbtasks); i++) {
-                    if (readtask(fdreply, rbuf->content.list.tasks) == 1) return 1; 
+                for (int i = 0; i < rbuf->content.list.nbtasks; i++) {
+                    if (readtask(fdreply, rbuf->content.list.tasks + i) == 1) return 1; 
                 }
-            break;
+                break;
             case TX_OPCODE :
-            if (read(fdreply, &(rbuf->content.tec.nbruns), sizeof(uint32_t)) < 0) return 1;
+                uint32_t nbruns_be;
+            if (read(fdreply, &nbruns_be, sizeof(uint32_t)) < 0) return 1;
+            rbuf->content.tec.nbruns = be32toh(nbruns_be); 
             rbuf->content.tec.runs = malloc(rbuf->content.tec.nbruns * sizeof(struct times_exitcodes));
             if (read_times_exitcodes(fdreply, rbuf->content.tec.runs, rbuf->content.tec.nbruns) == 1) return 1;
                 break;
@@ -31,44 +37,53 @@ int readreply(int fdreply, struct reply *rbuf, uint16_t opcode) {
                 break;
         }
     } else {
-        if (read(fdreply, &(rbuf->content.errcode), sizeof(uint16_t)) < 0) return 1;
+        uint16_t errcode_be;
+        if (read(fdreply, &errcode_be, sizeof(uint16_t)) < 0) return 1;
+        rbuf->content.errcode = be16toh(errcode_be);
     }
     return 0;
 }
 
 int writereply(int fdreply, struct reply *rbuf, uint16_t opcode) {
-    if (write(fdreply, &(rbuf->anstype), sizeof(uint16_t)) < 0) return 1; 
-    if (be16toh(rbuf->anstype) == OK_ANSTYPE) {
+    uint16_t anstype_be = htobe16(rbuf->anstype);
+    if (write(fdreply, &anstype_be, sizeof(uint16_t)) < 0) return 1; 
+    if (rbuf->anstype == OK_ANSTYPE) {
         switch(opcode) {
             case LS_OPCODE :
-                if (write(fdreply, &(rbuf->content.list.nbtasks), sizeof(uint32_t)) < 0) return 1;
-                for (int i = 0; i < be32toh(rbuf->content.list.nbtasks); i++) {
+                uint32_t nbtasks_be = htobe32(rbuf->content.list.nbtasks);
+                if (write(fdreply, &nbtasks_be, sizeof(uint32_t)) < 0) return 1;
+                for (int i = 0; i < rbuf->content.list.nbtasks; i++) {
                     if (writetask(fdreply, rbuf->content.list.tasks + i) == 1) return 1; 
                 }
                 break;
             case TX_OPCODE :
-                if (write(fdreply, &(rbuf->content.tec.nbruns), sizeof(uint32_t)) < 0) return 1;
+            uint32_t nbruns_be = htobe32(rbuf->content.tec.nbruns);
+                if (write(fdreply, &nbruns_be, sizeof(uint32_t)) < 0) return 1;
                 if (write_times_exitcodes(fdreply, rbuf->content.tec.runs, rbuf->content.tec.nbruns) == 1) return 1;
                 break;
             case SO_OPCODE : 
             case SE_OPCODE :
                 if (writestring(fdreply, &(rbuf->content.output)) == 1) return 1;
                 break;
+            case TM_OPCODE :
+                break;
             default :
-                if (write(fdreply, &(rbuf->content.taskid), sizeof(uint64_t)) < 0) return 1;
+                uint64_t taskid_be = htobe64(rbuf->content.taskid);
+                if (write(fdreply, &taskid_be, sizeof(uint64_t)) < 0) return 1;
                 break;
         }
     } else {
-        if (write(fdreply, &(rbuf->content.errcode), sizeof(uint16_t)) < 0) return 1; 
+        uint16_t errcode_be = htobe16(rbuf->content.errcode);
+        if (write(fdreply, &errcode_be, sizeof(uint16_t)) < 0) return 1; 
     }
     return 0;
 }
 
 void freereply(struct reply *rbuf, uint16_t opcode) {
-     if (be16toh(rbuf->anstype) == OK_ANSTYPE) {
+     if (rbuf->anstype == OK_ANSTYPE) {
         switch(opcode) {
             case LS_OPCODE :
-                for (int i = 0; i < be32toh(rbuf->content.list.nbtasks); i++) {
+                for (int i = 0; i < rbuf->content.list.nbtasks; i++) {
                     freecmd(&((rbuf->content.list.tasks+i)->task_command));
                 }
                 free(rbuf->content.list.tasks);

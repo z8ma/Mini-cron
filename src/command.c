@@ -1,6 +1,7 @@
 #include "command.h"
 #include "arguments.h"
 #include "communication.h"
+#include "times_exitcodes.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -26,8 +27,9 @@ void insertion_sort(char **arr, size_t n) {
 
 int readcmd_path(char *filename, struct command *cbuf) {
     struct stat st;
-    ssize_t fd;
+    int fd;
     char path[PATH_MAX];
+    uint16_t type_be;
     
     if (lstat(filename, &st) < 0) return 1;
     if ((st.st_mode & S_IFMT) != S_IFDIR) return 1;
@@ -35,17 +37,18 @@ int readcmd_path(char *filename, struct command *cbuf) {
     snprintf(path, strlen(filename) + 6, "%s/type", filename);
     fd = open(path, O_RDONLY);
     if (fd < 0) return 1;
-    if (read(fd, &(cbuf->type), sizeof(uint16_t)) < 0) return 1;
+    if (read(fd, &type_be, sizeof(uint16_t)) < 0) return 1;
+    cbuf->type = be16toh(type_be);
     close(fd);
 
-    if (be16toh(cbuf->type) == SI_TYPE) {
+    if (cbuf->type == SI_TYPE) {
         snprintf(path, strlen(filename) + 6, "%s/argv", filename);
         fd = open(path, O_RDONLY);
         if (fd < 0) return 1;
         int ret = readarguments(fd, &(cbuf->content.args));
         close(fd);
         return ret;
-    } else if (be16toh(cbuf->type) == SQ_TYPE) {
+    } else if (cbuf->type == SQ_TYPE) {
         struct dirent *entry;
         cbuf->content.combined.nbcmds = 0;
         char **names = NULL;
@@ -73,7 +76,6 @@ int readcmd_path(char *filename, struct command *cbuf) {
                 return 1;
             }
         }
-        cbuf->content.combined.nbcmds = htobe32(cbuf->content.combined.nbcmds);
         free(names);
         closedir(dirp);
         return 0;
@@ -82,13 +84,18 @@ int readcmd_path(char *filename, struct command *cbuf) {
 }
 
 int readcmd_fd(int fd, struct command *cbuf) {
-    if (read(fd, &(cbuf->type), sizeof(uint16_t)) < 0) return 1;
-    if (be16toh(cbuf->type) == SI_TYPE) {
+    uint16_t type_be;
+    if (read(fd, &type_be, sizeof(uint16_t))!= sizeof(uint16_t)) return 1;
+    cbuf->type = be16toh(type_be);
+    if (cbuf->type== SI_TYPE) {
         if (readarguments(fd, &(cbuf->content.args)) == 1) return 1;
-    } else if (be16toh(cbuf->type) == SQ_TYPE) {
-        if (read(fd, &(cbuf->content.combined.nbcmds), sizeof(uint32_t)) < 0) return 1;
-        cbuf->content.combined.cmds = malloc(be32toh(cbuf->content.combined.nbcmds) * sizeof(struct command));
-        for (int i = 0; i < be32toh(cbuf->content.combined.nbcmds); i++) {
+    } else if (cbuf->type == SQ_TYPE) {
+        uint32_t nbcmds_be;
+        if (read(fd, &nbcmds_be, sizeof(uint32_t))!= sizeof(uint32_t)) return 1;
+        cbuf->content.combined.nbcmds = be32toh(nbcmds_be);
+        cbuf->content.combined.cmds = malloc(cbuf->content.combined.nbcmds * sizeof(struct command));
+
+        for (int i = 0; i < cbuf->content.combined.nbcmds; i++) {
             if (readcmd_fd(fd, cbuf->content.combined.cmds + i) == 1) return 1;
         }
     }
@@ -96,12 +103,14 @@ int readcmd_fd(int fd, struct command *cbuf) {
 }
 
 int writecmd(int fd, struct command *cbuf) {
-    if (write(fd, &(cbuf->type), sizeof(uint16_t)) < 0) return 1;
-    if (be16toh(cbuf->type) == SI_TYPE) {
+    uint16_t type_be = htobe16(cbuf->type);
+    if (write(fd, &type_be, sizeof(uint16_t))!= sizeof(uint16_t)) return 1;
+    if (cbuf->type == SI_TYPE) {
         if (writearguments(fd, &(cbuf->content.args)) == 1) return 1;
-    } else if (be16toh(cbuf->type) == SQ_TYPE) {
-        if (write(fd, &(cbuf->content.combined.nbcmds), sizeof(uint32_t)) < 0) return 1;
-        for (int i = 0; i < be32toh(cbuf->content.combined.nbcmds); i++) {
+    } else if (cbuf->type == SQ_TYPE) {
+        uint32_t nbcmds_be = htobe32(cbuf->content.combined.nbcmds);
+        if (write(fd, &nbcmds_be, sizeof(uint32_t)) !=sizeof(uint32_t)) return 1;
+        for (int i = 0; i < cbuf->content.combined.nbcmds; i++) {
             if (writecmd(fd, cbuf->content.combined.cmds + i) == 1) return 1;
         }
     }
@@ -109,10 +118,11 @@ int writecmd(int fd, struct command *cbuf) {
 }
 
 void freecmd(struct command *cbuf) {
-    if (be16toh(cbuf->type) == SI_TYPE) {
+    if (cbuf->type == SI_TYPE) {
         freearguments(&(cbuf->content.args));
-    } else if (be16toh(cbuf->type) == SQ_TYPE) {
-        for(int i = 0; i < be32toh(cbuf->content.combined.nbcmds); i++) {
+    } else if (cbuf->type == SQ_TYPE) {
+        uint32_t host_nbcmds = cbuf->content.combined.nbcmds;
+        for(int i = 0; i < host_nbcmds; i++) {
             freecmd(&(cbuf->content.combined.cmds[i]));
         }
         free(cbuf->content.combined.cmds);
@@ -125,11 +135,12 @@ uint16_t executecmd(struct command *cbuf) {
     if (p < 0) {
         exit(1);
     } else if (p == 0) {
-        if (be16toh(cbuf->type) == SI_TYPE) {
+        if (cbuf->type == SI_TYPE) {
             exit(executearg(&cbuf->content.args));
-        } else if (be16toh(cbuf->type) == SQ_TYPE) {
+        } else if (cbuf->type == SQ_TYPE) {
             uint16_t finalexit = 0;
-            for (uint32_t i = 0; i < be32toh(cbuf->content.combined.nbcmds); i++) {
+            uint32_t nbcmds_host = cbuf->content.combined.nbcmds;
+            for (uint32_t i = 0; i < nbcmds_host; i++) {
                 finalexit = executecmd(cbuf->content.combined.cmds + i);
             }
             exit(finalexit);

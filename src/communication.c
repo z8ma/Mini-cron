@@ -41,7 +41,7 @@ void string_to_uint64(uint64_t *n, char *s) {
 }
 
 int handle_list_request(struct request req, struct reply *rbuf) {
-    rbuf->anstype = htobe16(OK_ANSTYPE);
+    rbuf->anstype = OK_ANSTYPE;
     rbuf->content.list.nbtasks = 0;
 
     char **names = NULL;
@@ -68,7 +68,6 @@ int handle_list_request(struct request req, struct reply *rbuf) {
         readtask_timing(path_task, &((rbuf->content.list.tasks + i)->task_timing));
         readtask_command(path_task, &((rbuf->content.list.tasks + i)->task_command));
     }
-    rbuf->content.list.nbtasks = htobe32(rbuf->content.list.nbtasks);
     return 0;
 }
 
@@ -150,7 +149,7 @@ int handle_request(int fdrequest, int fdreply) {
     struct request req;
     struct reply rep;
     if (readrequest(fdrequest, &req) == 1) return 1;
-    switch (be16toh(req.opcode)) {
+    switch (req.opcode) {
         case LS_OPCODE :
             handle_list_request(req, &rep);
             break;
@@ -174,8 +173,8 @@ int handle_request(int fdrequest, int fdreply) {
             exit(0);
             break;
     }
-    writereply(fdreply, &rep, be16toh(req.opcode));
-    freereply(&rep, be16toh(req.opcode));      
+    write(fdreply, &rep, req.opcode);
+    freereply(&rep, req.opcode);
     return 0;
 }
 
