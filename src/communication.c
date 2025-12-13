@@ -1,6 +1,7 @@
 #include "request.h"
 #include "reply.h"
 #include "task.h"
+#include "times_exitcodes.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -89,26 +90,57 @@ int handle_remove_request(struct request req, struct reply *rbuf) {
 }
 
 int handle_times_exitcodes_request(struct request req, struct reply *rbuf) {
-    char path_task[PATH_MAX];
-    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
-    // TODO fonction qui affecte à un tableau de times_ecxitcodes dans task.h
+    struct stat st;
+    char path_tec[PATH_MAX];
+    snprintf(path_tec, sizeof(path_tec), "tasks/%zu/", be64toh(req.content.taskid));
+    size_t len = strlen(path_tec);
+    if (stat(path_tec, &st) < 0) {
+        rbuf->anstype = htobe16(ER_ANSTYPE);
+        rbuf->content.errcode = htobe16(NF_ERRCODE);
+        return 0;
+    }
+    snprintf(path_tec + len, sizeof(path_tec) - len, "times-exitcodes");
+    rbuf->anstype = htobe16(OK_ANSTYPE);
+    int fd = open(path_tec, O_RDONLY);
+
+    size_t size;
+    if (fstat(fd, &st) < 0) {
+        perror("erreur fstat");
+        return 1;
+    }
+    rbuf->content.tec.nbruns = htobe32(st.st_size / sizeof(struct times_exitcodes));
+    rbuf->content.tec.runs = malloc(st.st_size);
+    read_times_exitcodes(fd,  rbuf->content.tec.runs);
     return 0;
 }
 
-int handle_stdout_request(struct request req, struct reply *rbuf) {
-    char path_task[PATH_MAX];
-    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
-    // TODO fonction qui affecte à un pointeur de string le stdout du taskid dans task.h
-    int fd = open(path_task, O_RDONLY);
-    readstd(fd, &(rbuf->content.output));
-    return 0;
-}
-
-int handle_stderr_request(struct request req, struct reply *rbuf) {
-    char path_task[PATH_MAX];
-    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
-    // TODO fonction qui affecte à un pointeur de string le stdout du taskid dans task.h
-    int fd = open(path_task, O_RDONLY);
+int handle_std_request(struct request req, struct reply *rbuf) {
+    struct stat st;
+    char path_std[PATH_MAX];
+    snprintf(path_std, sizeof(path_std), "tasks/%zu/", be64toh(req.content.taskid));
+    size_t len = strlen(path_std);
+    if (stat(path_std, &st) < 0) {
+        rbuf->anstype = htobe16(ER_ANSTYPE);
+        rbuf->content.errcode = htobe16(NF_ERRCODE);
+        return 0;
+    }
+    if (be16toh(req.opcode) == SO_OPCODE) {
+        snprintf(path_std + len, sizeof(path_std) - len, "stdout");
+        if (stat(path_std, &st) < 0) {
+            rbuf->anstype = htobe16(ER_ANSTYPE);
+            rbuf->content.errcode = htobe16(NR_ERRCODE);
+            return 0;
+    }
+    } else {
+        snprintf(path_std + len, sizeof(path_std) - len, "stderr");
+        if (stat(path_std, &st) < 0) {
+            rbuf->anstype = htobe16(ER_ANSTYPE);
+            rbuf->content.errcode = htobe16(NR_ERRCODE);
+            return 0;
+        }
+    }
+    rbuf->anstype = htobe16(OK_ANSTYPE);
+    int fd = open(path_std, O_RDONLY);
     readstd(fd, &(rbuf->content.output));
     return 0;
 }
@@ -120,7 +152,6 @@ int handle_request(int fdrequest, int fdreply) {
     switch (req.opcode) {
         case LS_OPCODE :
             handle_list_request(req, &rep);
-            return 0;
             break;
         case CR_OPCODE :
             handle_creat_request(req, &rep);
@@ -135,10 +166,8 @@ int handle_request(int fdrequest, int fdreply) {
             handle_times_exitcodes_request(req, &rep);
             break;
         case SO_OPCODE :
-            handle_stdout_request(req, &rep);
-            break;
         case SE_OPCODE :
-            handle_stderr_request(req, &rep);  
+            handle_std_request(req, &rep);  
             break;
         case TM_OPCODE :
             exit(0);
@@ -148,3 +177,36 @@ int handle_request(int fdrequest, int fdreply) {
     freereply(&rep, req.opcode);
     return 0;
 }
+
+/*int handle_request(int fdreply, uint16_t opcode) {
+    readreply(fdreply, &reply, be16toh(req.opcode));
+    struct reply rep;
+    if (readrequest(fdrequest, &req) == 1) return 1;
+    switch (be16toh(req.opcode)) {
+        case LS_OPCODE :
+            handle_list_request(req, &rep);
+            break;
+        case CR_OPCODE :
+            handle_creat_request(req, &rep);
+            break;
+        case CB_OPCODE :
+            handle_combine_request(req, &rep);
+            break;
+        case RM_OPCODE :
+            handle_remove_request(req, &rep);
+            break;
+        case TX_OPCODE :
+            handle_times_exitcodes_request(req, &rep);
+            break;
+        case SO_OPCODE :
+        case SE_OPCODE :
+            handle_std_request(req, &rep);  
+            break;
+        case TM_OPCODE :
+            exit(0);
+            break;
+    }
+    writereply(fdreply, &rep, be16toh(req.opcode));
+    freereply(&rep, be16toh(req.opcode));      
+    return 0;
+}*/

@@ -47,15 +47,21 @@ int main(int argc, char *argv[])
     char pipes[PATH_MAX] = "/tmp";
 
     size_t len = strlen(pipes);
-    snprintf(pipes + len, sizeof(pipes) - len, "/%s/erraid/pipes", getenv("USER"));
+    snprintf(pipes + len, sizeof(pipes) - len, "/%s/erraid/pipes/", getenv("USER"));
     len = strlen(pipes);
     snprintf(pipes + len, sizeof(pipes) - len, "%s", "erraid-request-pipe");
 
     int fdreq = open(pipes, O_WRONLY | O_NONBLOCK);
     writerequest(fdreq, &req);
-
     snprintf(pipes + len, sizeof(pipes) - len, "%s", "erraid-reply-pipe");
     int fdreply = open(pipes, O_RDONLY);
-    readreply(fdreply, &reply, req.opcode);
-    printf("T'es grv nul");
+    readreply(fdreply, &reply, be16toh(req.opcode));
+    printf("%#x\n", reply.anstype);
+    printf("%d\n", be64toh(reply.content.output.length));
+    write(1, reply.content.output.data, be32toh(reply.content.output.length));
+    freereply(&reply, htobe16(req.opcode));
+    freerequest(&req);
+    close(fdreq);
+    close(fdreply);
+    return 0;
 }

@@ -98,9 +98,8 @@ int readstd(int fd, struct string *output) {
         return 1;
     }
     size = st.st_size;
-    
-    output->data = NULL;
-    output->length = (uint32_t)size;
+
+    output->length = htobe32((uint32_t)size);
     
     if (size > 0) {
         output->data = malloc(size);
