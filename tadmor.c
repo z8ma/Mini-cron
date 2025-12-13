@@ -20,26 +20,24 @@ int main(int argc, char *argv[])
     int opt;
     struct request req;
     struct reply reply;
-    if ((opt = getopt(argc, argv, "lx:o:e:")) != -1)
-    {
-        switch (opt)
-        {
+    if ((opt = getopt(argc, argv, "lx:o:e:")) != -1) {
+        switch (opt) {
         case 'l':
-            req.opcode = htobe16(LS_OPCODE);
+            req.opcode = LS_OPCODE;
             break;
 
         case 'x':
-            req.opcode = htobe16(TX_OPCODE);
+            req.opcode = TX_OPCODE;
             string_to_uint64(&(req.content.taskid), optarg);
             break;
 
         case 'o':
-            req.opcode = htobe16(SO_OPCODE);
+            req.opcode = SO_OPCODE;
             string_to_uint64(&(req.content.taskid), optarg);
             break;
 
         case 'e':
-            req.opcode = htobe16(SE_OPCODE);
+            req.opcode = SE_OPCODE;
             string_to_uint64(&(req.content.taskid), optarg);
             break;
         }
@@ -49,18 +47,25 @@ int main(int argc, char *argv[])
     size_t len = strlen(pipes);
     snprintf(pipes + len, sizeof(pipes) - len, "/%s/erraid/pipes/", getenv("USER"));
     len = strlen(pipes);
-    snprintf(pipes + len, sizeof(pipes) - len, "%s", "erraid-request-pipe");
 
+    snprintf(pipes + len, sizeof(pipes) - len, "%s", "erraid-request-pipe");
     int fdreq = open(pipes, O_WRONLY | O_NONBLOCK);
+
     writerequest(fdreq, &req);
+
     snprintf(pipes + len, sizeof(pipes) - len, "%s", "erraid-reply-pipe");
     int fdreply = open(pipes, O_RDONLY);
-    readreply(fdreply, &reply, be16toh(req.opcode));
+
+    readreply(fdreply, &reply, req.opcode);
+
     printf("%#x\n", reply.anstype);
-    printf("%d\n", be64toh(reply.content.output.length));
-    write(1, reply.content.output.data, be32toh(reply.content.output.length));
-    freereply(&reply, htobe16(req.opcode));
+    printf("%d\n", reply.content.output.length);
+
+    write(1, reply.content.output.data, reply.content.output.length);
+
+    freereply(&reply, req.opcode);
     freerequest(&req);
+
     close(fdreq);
     close(fdreply);
     return 0;

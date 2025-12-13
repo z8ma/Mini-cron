@@ -34,4 +34,7 @@ void freereply(struct reply *rbuf, uint16_t opcode);
 #define OK_ANSTYPE 0x4f4b // 'OK'
 #define ER_ANSTYPE 0x4552 // 'ER'
 
+#define NF_ERRCODE 0x4e46 // 'NF'
+#define NR_ERRCODE 0x4e52 // 'NR'
+
 #endif

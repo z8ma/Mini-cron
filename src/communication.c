@@ -37,7 +37,7 @@ void string_to_uint64(uint64_t *n, char *s) {
         *n = (*n) * 10 + (*s - '0');
         s++;
     }
-    *n = htobe64(*n);
+    *n = *n;
 }
 
 int handle_list_request(struct request req, struct reply *rbuf) {
@@ -92,54 +92,53 @@ int handle_remove_request(struct request req, struct reply *rbuf) {
 int handle_times_exitcodes_request(struct request req, struct reply *rbuf) {
     struct stat st;
     char path_tec[PATH_MAX];
-    snprintf(path_tec, sizeof(path_tec), "tasks/%zu/", be64toh(req.content.taskid));
+    snprintf(path_tec, sizeof(path_tec), "tasks/%zu/", req.content.taskid);
     size_t len = strlen(path_tec);
     if (stat(path_tec, &st) < 0) {
-        rbuf->anstype = htobe16(ER_ANSTYPE);
-        rbuf->content.errcode = htobe16(NF_ERRCODE);
+        rbuf->anstype = ER_ANSTYPE;
+        rbuf->content.errcode = NF_ERRCODE;
         return 0;
     }
     snprintf(path_tec + len, sizeof(path_tec) - len, "times-exitcodes");
-    rbuf->anstype = htobe16(OK_ANSTYPE);
+    rbuf->anstype = OK_ANSTYPE;
     int fd = open(path_tec, O_RDONLY);
 
-    size_t size;
     if (fstat(fd, &st) < 0) {
         perror("erreur fstat");
         return 1;
     }
-    rbuf->content.tec.nbruns = htobe32(st.st_size / sizeof(struct times_exitcodes));
+    rbuf->content.tec.nbruns = st.st_size / sizeof(struct times_exitcodes);
     rbuf->content.tec.runs = malloc(st.st_size);
-    read_times_exitcodes(fd,  rbuf->content.tec.runs);
+    read_times_exitcodes(fd,  rbuf->content.tec.runs,0);
     return 0;
 }
 
 int handle_std_request(struct request req, struct reply *rbuf) {
     struct stat st;
     char path_std[PATH_MAX];
-    snprintf(path_std, sizeof(path_std), "tasks/%zu/", be64toh(req.content.taskid));
+    snprintf(path_std, sizeof(path_std), "tasks/%zu/", req.content.taskid);
     size_t len = strlen(path_std);
     if (stat(path_std, &st) < 0) {
-        rbuf->anstype = htobe16(ER_ANSTYPE);
-        rbuf->content.errcode = htobe16(NF_ERRCODE);
+        rbuf->anstype = ER_ANSTYPE;
+        rbuf->content.errcode = NF_ERRCODE;
         return 0;
     }
-    if (be16toh(req.opcode) == SO_OPCODE) {
+    if (req.opcode == SO_OPCODE) {
         snprintf(path_std + len, sizeof(path_std) - len, "stdout");
         if (stat(path_std, &st) < 0) {
-            rbuf->anstype = htobe16(ER_ANSTYPE);
-            rbuf->content.errcode = htobe16(NR_ERRCODE);
+            rbuf->anstype = ER_ANSTYPE;
+            rbuf->content.errcode = NR_ERRCODE;
             return 0;
     }
     } else {
         snprintf(path_std + len, sizeof(path_std) - len, "stderr");
         if (stat(path_std, &st) < 0) {
-            rbuf->anstype = htobe16(ER_ANSTYPE);
-            rbuf->content.errcode = htobe16(NR_ERRCODE);
+            rbuf->anstype = ER_ANSTYPE;
+            rbuf->content.errcode = NR_ERRCODE;
             return 0;
         }
     }
-    rbuf->anstype = htobe16(OK_ANSTYPE);
+    rbuf->anstype = OK_ANSTYPE;
     int fd = open(path_std, O_RDONLY);
     readstd(fd, &(rbuf->content.output));
     return 0;
@@ -173,7 +172,7 @@ int handle_request(int fdrequest, int fdreply) {
             exit(0);
             break;
     }
-    write(fdreply, &rep, req.opcode);
+    writereply(fdreply, &rep, req.opcode);
     freereply(&rep, req.opcode);
     return 0;
 }

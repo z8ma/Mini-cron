@@ -77,7 +77,7 @@ int writerequest(int fdrequest, struct request *rbuf){
         case TM_OPCODE :
             break;
         default :
-        uint64_t taskid_be = htobe64(rbuf->content.taskid);
+            uint64_t taskid_be = htobe64(rbuf->content.taskid);
             if (write(fdrequest, &taskid_be, sizeof(uint64_t)) < 0) return 1;
             break;
     }
