@@ -96,20 +96,36 @@ int handle_times_exitcodes_request(struct request req, struct reply *rbuf) {
     size_t len = strlen(path_tec);
     if (stat(path_tec, &st) < 0) {
         rbuf->anstype = ER_ANSTYPE;
-        rbuf->content.errcode = NF_ERRCODE;
+        rbuf->content.errcode = htobe16(NF_ERRCODE);
         return 0;
     }
     snprintf(path_tec + len, sizeof(path_tec) - len, "times-exitcodes");
     rbuf->anstype = OK_ANSTYPE;
     int fd = open(path_tec, O_RDONLY);
 
+    if (fd < 0) {
+        perror("Erreur open");
+        return 1; 
+    }
+
     if (fstat(fd, &st) < 0) {
         perror("erreur fstat");
         return 1;
     }
-    rbuf->content.tec.nbruns = st.st_size / sizeof(struct times_exitcodes);
+    int count = st.st_size / sizeof(struct times_exitcodes);
+    rbuf->content.tec.nbruns = htobe32(count);
+
     rbuf->content.tec.runs = malloc(st.st_size);
-    read_times_exitcodes(fd,  rbuf->content.tec.runs,0);
+    if (rbuf->content.tec.runs == NULL) {
+        close(fd);
+        return 1;
+    }
+    for (int i = 0; i < count; i++) {
+        // On passe l'adresse de l'élément i du tableau : &rbuf->...runs[i]
+        // On utilise la fonction wrapper qui gère l'endianness
+        read_times_exitcodes(fd, &rbuf->content.tec.runs[i], 0);
+    }
+    close(fd);
     return 0;
 }
 
