@@ -10,7 +10,7 @@ struct times_exitcodes{
 };
 
 typedef struct times_exitcodes_list {
-    times_exitcodes *records; 
+    struct times_exitcodes *records; 
     uint32_t count;              
 } times_exitcodes_list_t;
 

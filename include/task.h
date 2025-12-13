@@ -16,6 +16,5 @@ int readtask_command(char *path_task, struct command *task_command);
 int readstd(int fd,struct string *output);
 int writetask(int fd, struct task *tbuf);
 int executetask(char *path_task);
-task_list_t read_all_tasks(const char *tasks_root_path);
 
 #endif

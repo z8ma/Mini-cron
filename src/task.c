@@ -8,16 +8,20 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <time.h>
+#include <sys/stat.h>
 
 int readtask(int fd, struct task *tbuf){
-    if (read(fd, &(tbuf->taskid), sizeof(uint64_t)) < 0) return 1;
+    uint64_t taskid_be;
+    if (read(fd, &taskid_be, sizeof(uint64_t)) < 0) return 1;
+    tbuf->taskid = be64toh(taskid_be);
     if (readtiming(fd, &(tbuf->task_timing)) == 1) return 1;
     if (readcmd_fd(fd, &(tbuf->task_command)) == 1) return 1;
     return 0;
 }
 
 int writetask(int fd, struct task *tbuf){
-    if (write(fd, &(tbuf->taskid), sizeof(uint64_t)) < 0) return 1;
+    uint64_t taskid_be = htobe64(tbuf->taskid);
+    if (write(fd, &taskid_be, sizeof(uint64_t)) < 0) return 1;
     if (writetiming(fd, &(tbuf->task_timing)) == 1) return 1;
     if (writecmd(fd, &(tbuf->task_command)) == 1) return 1;
     return 0;
@@ -83,10 +87,8 @@ int executetask(char *path_task) {
         freecmd(&task_command);
     }
     return 0;
-
-    int createtask(struct arguments *arg) {
-    
 }
+
 int readstd(int fd, struct string *output) {
     struct stat st;
     size_t size;
@@ -118,5 +120,4 @@ int readstd(int fd, struct string *output) {
     }
     
     return 0;
-}
 }

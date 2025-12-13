@@ -5,18 +5,15 @@
 #include <stdint.h>
 
 int readstring(int fd, struct string *sbuf) {
-
     uint32_t length_be;
-
     if (read(fd, &length_be, sizeof(uint32_t)) < 0) return 1;
-    uint32_t host_length = be32toh(length_be);
-    sbuf->length = host_length;
+    sbuf->length = be32toh(length_be);
 
-    sbuf->data = malloc((host_length + 1) * sizeof(uint8_t));
+    sbuf->data = malloc((sbuf->length + 1) * sizeof(uint8_t));
     if(!sbuf->data) return 1;
 
-    if (read(fd, sbuf->data, host_length * sizeof(uint8_t)) != (ssize_t)host_length * sizeof(uint8_t)) return 1;
-    sbuf->data[host_length] ='\0';
+    if (read(fd, sbuf->data, sbuf->length * sizeof(uint8_t)) != (ssize_t)sbuf->length * sizeof(uint8_t)) return 1;
+    sbuf->data[sbuf->length] ='\0';
     return 0;
 }
 

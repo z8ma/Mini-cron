@@ -6,13 +6,12 @@
 #include <sys/wait.h>
 
 int readarguments(int fd, struct arguments *abuf) {
-    if (read(fd, &(abuf->argc), sizeof(uint32_t)) < 0) return 1;
+    uint32_t argc_be;
+    if (read(fd, &argc_be, sizeof(uint32_t)) < 0) return 1;
+    abuf->argc = be32toh(argc_be);
 
-    uint32_t host_argc = be32toh(abuf->argc);
-    abuf->argc = host_argc;
-
-    abuf->argv = malloc(host_argc * sizeof(struct string));
-    for (size_t i = 0; i < host_argc; i++) {
+    abuf->argv = malloc(abuf->argc * sizeof(struct string));
+    for (size_t i = 0; i < abuf->argc; i++) {
         if (readstring(fd, abuf->argv + i) < 0) return 1;
     }
     return 0;
@@ -36,18 +35,17 @@ void freearguments(struct arguments *abuf) {
 }
 
 uint16_t executearg(struct arguments *abuf) {
-    uint32_t host_argc = abuf->argc;
     pid_t p = fork();
     if (p == 0) {
-        char **exec_argv = malloc((host_argc+1) * sizeof(char *));
+        char **exec_argv = malloc((abuf->argc + 1) * sizeof(char *));
         if (!exec_argv) { 
             perror("malloc"); exit(1); 
         }
 
-        for (uint32_t i = 0; i < host_argc; i++) {
+        for (uint32_t i = 0; i < abuf->argc; i++) {
             exec_argv[i] = (char *)abuf->argv[i].data;
         }
-        exec_argv[host_argc] = NULL;
+        exec_argv[abuf->argc] = NULL;
         execvp(exec_argv[0], exec_argv);
 
         perror("execvp");
