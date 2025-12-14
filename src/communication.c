@@ -190,38 +190,44 @@ int handle_request(int fdrequest, int fdreply) {
     }
     writereply(fdreply, &rep, req.opcode);
     freereply(&rep, req.opcode);
+    freerequest(&req);
     return 0;
 }
 
-/*int handle_request(int fdreply, uint16_t opcode) {
-    readreply(fdreply, &reply, be16toh(req.opcode));
+int handle_reply(int fdreply, uint16_t opcode) {
     struct reply rep;
-    if (readrequest(fdrequest, &req) == 1) return 1;
-    switch (be16toh(req.opcode)) {
-        case LS_OPCODE :
-            handle_list_request(req, &rep);
-            break;
-        case CR_OPCODE :
-            handle_creat_request(req, &rep);
-            break;
-        case CB_OPCODE :
-            handle_combine_request(req, &rep);
-            break;
-        case RM_OPCODE :
-            handle_remove_request(req, &rep);
-            break;
-        case TX_OPCODE :
-            handle_times_exitcodes_request(req, &rep);
-            break;
-        case SO_OPCODE :
-        case SE_OPCODE :
-            handle_std_request(req, &rep);  
-            break;
-        case TM_OPCODE :
-            exit(0);
-            break;
+    struct string msg = {0, NULL};
+    readreply(fdreply, &rep, opcode);
+    if (rep.anstype == OK_ANSTYPE) {
+        switch (opcode) {
+            case LS_OPCODE :
+                struct string rtl = {1, (uint8_t*)"\n"};
+                for (int i = 0; i < rep.content.list.nbtasks; i++) {
+                    task_to_string(rep.content.list.tasks[i], &msg);
+                    catstring(&msg, rtl);
+                }
+                break;
+            case CR_OPCODE :
+                break;
+            case CB_OPCODE :
+                break;
+            case RM_OPCODE :
+                break;
+            case TX_OPCODE :
+                break;
+            case SO_OPCODE :
+            case SE_OPCODE :
+                catstring(&msg, rep.content.output);
+                break;
+            case TM_OPCODE :
+                exit(0);
+                break;
+        }
+    } else {
+        
     }
-    writereply(fdreply, &rep, be16toh(req.opcode));
-    freereply(&rep, be16toh(req.opcode));      
+    write(STDOUT_FILENO, msg.data, msg.length);
+    freereply(&rep, opcode);
+    freestring(&msg);     
     return 0;
-}*/
+}
