@@ -22,7 +22,7 @@
 void insertion_sort2(char **arr, size_t n) {
     for (size_t i = 1; i < n; i++) {
         char *key = arr[i];
-        size_t j = i - 1;
+        ssize_t j = i - 1;
         while (j >= 0 && strcmp(arr[j], key) > 0) {
             arr[j + 1] = arr[j];
             j--;
@@ -31,14 +31,7 @@ void insertion_sort2(char **arr, size_t n) {
     }
 }
 
-void string_to_uint64(uint64_t *n, char *s) {
-    *n = 0;
-    while (*s) {
-        *n = (*n) * 10 + (*s - '0');
-        s++;
-    }
-    *n = *n;
-}
+void string_to_uint64(uint64_t *n, char *s) { *n = 0; while (*s) { *n = (*n) * 10 + (*s - '0'); s++; } }
 
 int handle_list_request(struct request req, struct reply *rbuf) {
     rbuf->anstype = OK_ANSTYPE;
@@ -54,16 +47,14 @@ int handle_list_request(struct request req, struct reply *rbuf) {
     while ((entry = readdir(dirp))) {
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 && (entry->d_type == DT_DIR)) {
             names = realloc(names, (rbuf->content.list.nbtasks + 1) * sizeof(char *));
-            names[rbuf->content.list.nbtasks++] = (entry->d_name);
+            names[rbuf->content.list.nbtasks++] = strdup(entry->d_name);
         }
     }
     closedir(dirp);
-
     insertion_sort2(names, rbuf->content.list.nbtasks);
     rbuf->content.list.tasks = malloc(rbuf->content.list.nbtasks * sizeof(struct task));
     for (int i = 0; i < rbuf->content.list.nbtasks; i++) {
         snprintf(path_task, sizeof(path_task), "tasks/%s", names[i]);
-
         string_to_uint64(&((rbuf->content.list.tasks + i)->taskid), names[i]);
         readtask_timing(path_task, &((rbuf->content.list.tasks + i)->task_timing));
         readtask_command(path_task, &((rbuf->content.list.tasks + i)->task_command));
@@ -112,20 +103,7 @@ int handle_times_exitcodes_request(struct request req, struct reply *rbuf) {
         perror("erreur fstat");
         return 1;
     }
-    int count = st.st_size / sizeof(struct times_exitcodes);
-    rbuf->content.tec.nbruns = htobe32(count);
-
-    rbuf->content.tec.runs = malloc(st.st_size);
-    if (rbuf->content.tec.runs == NULL) {
-        close(fd);
-        return 1;
-    }
-    for (int i = 0; i < count; i++) {
-        // On passe l'adresse de l'élément i du tableau : &rbuf->...runs[i]
-        // On utilise la fonction wrapper qui gère l'endianness
-        read_times_exitcodes(fd, &rbuf->content.tec.runs[i], 0);
-    }
-    close(fd);
+    read_times_exitcodes(fd, &(rbuf->content.tec));
     return 0;
 }
 
@@ -188,6 +166,7 @@ int handle_request(int fdrequest, int fdreply) {
             exit(0);
             break;
     }
+
     writereply(fdreply, &rep, req.opcode);
     freereply(&rep, req.opcode);
     freerequest(&req);
@@ -214,6 +193,7 @@ int handle_reply(int fdreply, uint16_t opcode) {
             case RM_OPCODE :
                 break;
             case TX_OPCODE :
+                times_exitcodes_to_string(rep.content.tec, &msg);
                 break;
             case SO_OPCODE :
             case SE_OPCODE :
@@ -224,7 +204,6 @@ int handle_reply(int fdreply, uint16_t opcode) {
                 break;
         }
     } else {
-        
     }
     write(STDOUT_FILENO, msg.data, msg.length);
     freereply(&rep, opcode);

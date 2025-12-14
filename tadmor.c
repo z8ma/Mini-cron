@@ -15,8 +15,7 @@
 #include <stdio.h>
 #include <time.h>
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     int opt;
     struct request req;
     req.opcode=0;
@@ -30,7 +29,6 @@ int main(int argc, char *argv[])
         case 'l':
             req.opcode = LS_OPCODE;
             break;
-
         case 'x':
             req.opcode = TX_OPCODE;
             string_to_uint64(&(req.content.taskid), optarg);
@@ -69,7 +67,6 @@ int main(int argc, char *argv[])
         perror("Erreur ouverture pipe request");
         return 1;
     }
-
     writerequest(fdreq, &req);
 
     snprintf(pipes, sizeof(pipes), "%s/%s",pipes_dir, "erraid-reply-pipe");
@@ -79,7 +76,6 @@ int main(int argc, char *argv[])
         close(fdreq);
         return 1;
     }
-
     handle_reply(fdreply, req.opcode);
 
     freerequest(&req);

@@ -3,19 +3,23 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include "string_uint.h"
 
-struct times_exitcodes{
+struct run {
     uint64_t time;
     uint16_t exitcode;
 };
 
-typedef struct times_exitcodes_list {
-    struct times_exitcodes *records; 
-    uint32_t count;              
-} times_exitcodes_list_t;
+struct times_exitcodes{
+    uint32_t nbruns;
+    struct run *runs;
+};
 
-int read_times_exitcodes(int fd, struct times_exitcodes *tec, size_t n);
-int write_times_exitcodes(int fd, struct times_exitcodes *tec, size_t n);
-int readtec(int fd, struct times_exitcodes *tec);
+int readrun(int fd, struct run *rbuf);
+int writerun(int fd, struct run *rbuf);
+int read_times_exitcodes(int fd, struct times_exitcodes *tec);
+int write_times_exitcodes(int fd, struct times_exitcodes *tec);
+int run_to_string(struct run r, struct string *s);
+int times_exitcodes_to_string(struct times_exitcodes tec, struct string *s);
 
 #endif

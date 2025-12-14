@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 
 int readreply(int fdreply, struct reply *rbuf, uint16_t opcode) {
     uint16_t anstype_be;
@@ -27,9 +28,8 @@ int readreply(int fdreply, struct reply *rbuf, uint16_t opcode) {
             case TX_OPCODE :
                 uint32_t nbruns_be;
             if (read(fdreply, &nbruns_be, sizeof(uint32_t)) < 0) return 1;
-            rbuf->content.tec.nbruns = be32toh(nbruns_be); 
-            rbuf->content.tec.runs = malloc(rbuf->content.tec.nbruns * sizeof(struct times_exitcodes));
-            if (read_times_exitcodes(fdreply, rbuf->content.tec.runs, rbuf->content.tec.nbruns) == 1) return 1;
+                rbuf->content.tec.nbruns = be32toh(nbruns_be); 
+            if (read_times_exitcodes(fdreply, &(rbuf->content.tec)) == 1) return 1;
                 break;
             case SO_OPCODE : 
             case SE_OPCODE :
@@ -57,9 +57,7 @@ int writereply(int fdreply, struct reply *rbuf, uint16_t opcode) {
                 }
                 break;
             case TX_OPCODE :
-            uint32_t nbruns_be = htobe32(rbuf->content.tec.nbruns);
-                if (write(fdreply, &nbruns_be, sizeof(uint32_t)) < 0) return 1;
-                if (write_times_exitcodes(fdreply, rbuf->content.tec.runs, rbuf->content.tec.nbruns) == 1) return 1;
+                if (write_times_exitcodes(fdreply, &rbuf->content.tec) == 1) return 1;
                 break;
             case SO_OPCODE : 
             case SE_OPCODE :
