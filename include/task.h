@@ -3,6 +3,7 @@
 
 #include "command.h"
 #include "timing.h"
+#include "string_uint.h"
 
 struct task{
     uint64_t taskid;
@@ -16,5 +17,6 @@ int readtask_command(char *path_task, struct command *task_command);
 int readstd(int fd,struct string *output);
 int writetask(int fd, struct task *tbuf);
 int executetask(char *path_task);
+int task_to_string(struct task t, struct string *s);
 
 #endif

@@ -56,14 +56,8 @@ int main(int argc, char *argv[])
     snprintf(pipes + len, sizeof(pipes) - len, "%s", "erraid-reply-pipe");
     int fdreply = open(pipes, O_RDONLY);
 
-    readreply(fdreply, &reply, req.opcode);
+    handle_reply(fdreply, req.opcode);
 
-    printf("%#x\n", reply.anstype);
-    printf("%d\n", reply.content.output.length);
-
-    write(1, reply.content.output.data, reply.content.output.length);
-
-    freereply(&reply, req.opcode);
     freerequest(&req);
 
     close(fdreq);
