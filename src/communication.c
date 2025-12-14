@@ -87,7 +87,7 @@ int handle_times_exitcodes_request(struct request req, struct reply *rbuf) {
     size_t len = strlen(path_tec);
     if (stat(path_tec, &st) < 0) {
         rbuf->anstype = ER_ANSTYPE;
-        rbuf->content.errcode = htobe16(NF_ERRCODE);
+        rbuf->content.errcode = NF_ERRCODE;
         return 0;
     }
     snprintf(path_tec + len, sizeof(path_tec) - len, "times-exitcodes");
@@ -174,6 +174,7 @@ int handle_request(int fdrequest, int fdreply) {
 }
 
 int handle_reply(int fdreply, uint16_t opcode) {
+    int ret = 0;
     struct reply rep;
     struct string msg = {0, NULL};
     readreply(fdreply, &rep, opcode);
@@ -204,9 +205,10 @@ int handle_reply(int fdreply, uint16_t opcode) {
                 break;
         }
     } else {
+        ret = 1;
     }
     write(STDOUT_FILENO, msg.data, msg.length);
     freereply(&rep, opcode);
     freestring(&msg);     
-    return 0;
+    return ret;
 }

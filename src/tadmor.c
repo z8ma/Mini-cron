@@ -19,7 +19,6 @@ int main(int argc, char *argv[]) {
     int opt;
     struct request req;
     req.opcode=0;
-    struct reply reply;
     char *custom_dir = NULL;
     while ((opt = getopt(argc, argv, "p:lx:o:e:")) != -1) {
         switch (opt) {
@@ -53,15 +52,15 @@ int main(int argc, char *argv[]) {
 
     char pipes_dir[PATH_MAX];
     
-
+    int len;
     if (custom_dir != NULL) {
-        snprintf(pipes_dir, sizeof(pipes_dir), "%s", custom_dir);
+        len = snprintf(pipes_dir, sizeof(pipes_dir), "%s", custom_dir);
     } else {
-        snprintf(pipes_dir, sizeof(pipes_dir), "/tmp/%s/erraid/pipes", getenv("USER"));
-    }
+        len = snprintf(pipes_dir, sizeof(pipes_dir), "/tmp/%s/erraid/pipes", getenv("USER"));
+    } 
 
     char pipes[PATH_MAX];
-    snprintf(pipes, sizeof(pipes), "%s/%s",pipes_dir, "erraid-request-pipe");
+    snprintf(pipes, sizeof(pipes) - len, "%s/erraid-request-pipe", pipes_dir);
     int fdreq = open(pipes, O_WRONLY | O_NONBLOCK);
     if (fdreq < 0) {
         perror("Erreur ouverture pipe request");
@@ -69,18 +68,18 @@ int main(int argc, char *argv[]) {
     }
     writerequest(fdreq, &req);
 
-    snprintf(pipes, sizeof(pipes), "%s/%s",pipes_dir, "erraid-reply-pipe");
+    snprintf(pipes, sizeof(pipes) - len, "%s/erraid-reply-pipe", pipes_dir);
     int fdreply = open(pipes, O_RDONLY);
     if (fdreply < 0) {
         perror("Erreur ouverture pipe reply");
         close(fdreq);
         return 1;
     }
-    handle_reply(fdreply, req.opcode);
+    int ret = handle_reply(fdreply, req.opcode);
 
     freerequest(&req);
 
     close(fdreq);
     close(fdreply);
-    return 0;
+    return ret;
 }

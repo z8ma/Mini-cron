@@ -59,6 +59,7 @@ int run_to_string(struct run r, struct string *s) {
     catstring(s, dash);
     uint_to_string((uint64_t)(tm->tm_mon + 1), s);
     catstring(s, dash);
+    if (tm->tm_mday < 10) uint_to_string(0, s);
     uint_to_string((uint64_t)tm->tm_mday, s);
     catstring(s, space);
 

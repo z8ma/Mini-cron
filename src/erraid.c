@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
     char path_task[PATH_MAX];
     struct stat st;
     
-    //while (1) {
+    while (1) {
         int action = select_pipe_until_next_minute(fd_pipe_request);
         if (action < 0) {
             return 1;
@@ -157,6 +157,6 @@ int main(int argc, char *argv[]) {
             int fd_pipe_reply = open("pipes/erraid-reply-pipe", O_WRONLY);
             handle_request(fd_pipe_request, fd_pipe_reply);
         }
-    //}
+    }
     return 0;
 }
