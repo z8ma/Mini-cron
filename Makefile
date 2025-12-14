@@ -5,7 +5,7 @@ OBJ = $(patsubst src/%.c, build/%.o, $(SRC))
 ERRAID_OBJ = build/erraid.o $(OBJ)
 
 
-aall:erraid tadmor
+all:erraid tadmor
 
 tadmor: src/tadmor.c $(OBJ)
     $(CC) $(CFLAGS) src/tadmor.c $(OBJ) -o tadmor
