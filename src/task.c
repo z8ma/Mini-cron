@@ -1,6 +1,7 @@
 #include "task.h"
 #include "command.h"
 #include "timing.h"
+#include "string_uint.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -118,5 +119,17 @@ int readstd(int fd, struct string *output) {
         }
     }
     
+    return 0;
+}
+
+int task_to_string(struct task t, struct string *s) {
+    struct string colon = {1, (uint8_t*)":"};
+    struct string space = {1, (uint8_t*)" "};
+    if(uint_to_string(t.taskid, s) == 1) return 1;
+    if(catstring(s, colon) == 1) return 1;
+    if(catstring(s, space) == 1) return 1;
+    if(timing_to_string(t.task_timing, s) == 1) return 1;
+    if(catstring(s, space) == 1) return 1;
+    if(command_to_string(t.task_command, s) == 1) return 1;
     return 0;
 }
