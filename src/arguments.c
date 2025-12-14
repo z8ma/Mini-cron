@@ -9,7 +9,6 @@ int readarguments(int fd, struct arguments *abuf) {
     uint32_t argc_be;
     if (read(fd, &argc_be, sizeof(uint32_t)) < 0) return 1;
     abuf->argc = be32toh(argc_be);
-
     abuf->argv = malloc(abuf->argc * sizeof(struct string));
     for (size_t i = 0; i < abuf->argc; i++) {
         if (readstring(fd, abuf->argv + i) < 0) return 1;
@@ -60,4 +59,15 @@ uint16_t executearg(struct arguments *abuf) {
         }
         return 0xffff;
     }
+}
+
+int arguments_to_string(struct arguments a,struct string *s) {
+    struct string space = {1, (uint8_t*) " "};
+    for (int i = 0; i < a.argc; i++) {
+        if (catstring(s, a.argv[i]) == 1) return 1;
+        if (i != a.argc - 1) {
+            if (catstring(s, space) == 1) return 1;
+        }
+    }
+    return 0;
 }
