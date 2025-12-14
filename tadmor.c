@@ -19,9 +19,14 @@ int main(int argc, char *argv[])
 {
     int opt;
     struct request req;
+    req.opcode=0;
     struct reply reply;
-    if ((opt = getopt(argc, argv, "lx:o:e:")) != -1) {
+    char *custom_dir = NULL;
+    while ((opt = getopt(argc, argv, "p:lx:o:e:")) != -1) {
         switch (opt) {
+            case 'p':
+            custom_dir = optarg; 
+            break;
         case 'l':
             req.opcode = LS_OPCODE;
             break;
@@ -42,19 +47,38 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    char pipes[PATH_MAX] = "/tmp";
 
-    size_t len = strlen(pipes);
-    snprintf(pipes + len, sizeof(pipes) - len, "/%s/erraid/pipes/", getenv("USER"));
-    len = strlen(pipes);
+    if (req.opcode == 0) {
+        fprintf(stderr, "Erreur : vous devez choisir une commande (-l, -x, -o ou -e).\n");
+        return 1;
+    }
 
-    snprintf(pipes + len, sizeof(pipes) - len, "%s", "erraid-request-pipe");
+    char pipes_dir[PATH_MAX];
+    
+
+    if (custom_dir != NULL) {
+        snprintf(pipes_dir, sizeof(pipes_dir), "%s", custom_dir);
+    } else {
+        snprintf(pipes_dir, sizeof(pipes_dir), "/tmp/%s/erraid/pipes", getenv("USER"));
+    }
+
+    char pipes[PATH_MAX];
+    snprintf(pipes, sizeof(pipes), "%s/%s",pipes_dir, "erraid-request-pipe");
     int fdreq = open(pipes, O_WRONLY | O_NONBLOCK);
+    if (fdreq < 0) {
+        perror("Erreur ouverture pipe request");
+        return 1;
+    }
 
     writerequest(fdreq, &req);
 
-    snprintf(pipes + len, sizeof(pipes) - len, "%s", "erraid-reply-pipe");
+    snprintf(pipes, sizeof(pipes), "%s/%s",pipes_dir, "erraid-reply-pipe");
     int fdreply = open(pipes, O_RDONLY);
+    if (fdreply < 0) {
+        perror("Erreur ouverture pipe reply");
+        close(fdreq);
+        return 1;
+    }
 
     handle_reply(fdreply, req.opcode);
 
