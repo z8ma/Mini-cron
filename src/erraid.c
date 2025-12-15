@@ -22,9 +22,7 @@ int select_pipe_until_next_minute(int fd_pipe_request) {
     tv.tv_sec = 60 - (time(NULL) % 60);
     tv.tv_usec = 0;
     int ret = select(fd_pipe_request + 1, &fdreads, NULL, NULL, &tv);
-    if (ret <= 0) {
-        return ret;
-    }
+
     return ret;
 }
 
@@ -88,7 +86,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
-    int fd_pipe_request = open("pipes/erraid-request-pipe", O_RDONLY | O_NONBLOCK);
+    int fd_pipe_request = open("pipes/erraid-request-pipe", O_RDWR | O_NONBLOCK);
 
     if (mkfifo("pipes/erraid-reply-pipe", 0644) < 0) {
         if (errno != EEXIST) {
@@ -145,8 +143,9 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
                 if (S_ISDIR(st.st_mode) && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-                    p = fork();
-                    if (p == 0) {
+                    //write(1, "pauvre de moi\n", 14);
+                        p = fork();
+                        if (p == 0) {
                         executetask(path_task);
                         return 0;
                     }
@@ -154,8 +153,11 @@ int main(int argc, char *argv[]) {
             }
             closedir(dirp);
         } else {
+            //fcntl(fd_pipe_request, F_SETFL, flag_pipe_request & ~O_WRONLY);
             int fd_pipe_reply = open("pipes/erraid-reply-pipe", O_WRONLY);
             handle_request(fd_pipe_request, fd_pipe_reply);
+            close(fd_pipe_reply);
+            //fcntl(fd_pipe_request, F_SETFL, flag_pipe_request);
         }
     }
     return 0;
