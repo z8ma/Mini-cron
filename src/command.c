@@ -165,16 +165,16 @@ int command_to_string(struct command c,struct string *s) {
         struct string semicolon = {1, (uint8_t*) ";"};
         struct string end = {1, (uint8_t*) ")"};
 
-        if (catstring(s, start) == 1) return 1;
         for (int i = 0; i< c.content.combined.nbcmds; i++) {
+            if (catstring(s, start) == 1) return 1;
             catstring(s, space);
             if (command_to_string(c.content.combined.cmds[i], s) == 1) return 1;
             catstring(s, space);
             if (i != c.content.combined.nbcmds-1) {
                 if (catstring(s, semicolon) == 1) return 1;
             }
+            if (catstring(s, end) == 1) return 1;
         }
-        if (catstring(s, end) == 1) return 1;
     }
     return 0;
 }
