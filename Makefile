@@ -1,11 +1,14 @@
 CC = gcc
 CFLAGS = -Wall -Iinclude
-SRC = $(filter-out src/erraid.c, $(wildcard src/*.c))
+SRC = $(filter-out src/erraid.c src/tadmor.c, $(wildcard src/*.c))
 OBJ = $(patsubst src/%.c, build/%.o, $(SRC))
 ERRAID_OBJ = build/erraid.o $(OBJ)
 
 
-all:erraid
+all:erraid tadmor
+
+tadmor: src/tadmor.c $(OBJ)
+	$(CC) $(CFLAGS) src/tadmor.c $(OBJ) -o tadmor	
 
 erraid: src/erraid.c $(OBJ)
 	$(CC) $(CFLAGS) src/erraid.c $(OBJ) -o erraid
@@ -16,6 +19,7 @@ build/%.o: src/%.c
 clean:
 	rm -rf build/
 	rm -f erraid
+	rm -f tadmor
 	rm -rf .sy5-2025-2026-projet-erraid-autotests.nosync/
 
 distclean: clean

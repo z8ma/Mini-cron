@@ -5,30 +5,42 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-
 int readarguments(int fd, struct arguments *abuf) {
-    if (read(fd, abuf, sizeof(uint32_t)) < 0) return 1;
-
-    abuf->argc = be32toh(abuf->argc);
-    abuf->argv = malloc((abuf->argc) * sizeof(struct string));
+    uint32_t argc_be;
+    if (read(fd, &argc_be, sizeof(uint32_t)) < 0) return 1;
+    abuf->argc = be32toh(argc_be);
+    abuf->argv = malloc(abuf->argc * sizeof(struct string));
     for (size_t i = 0; i < abuf->argc; i++) {
-        if (readstring(fd, &abuf->argv[i]) < 0) return 1;
+        if (readstring(fd, abuf->argv + i) < 0) return 1;
     }
+    return 0;
+}
 
+int writearguments(int fd, struct arguments *abuf) {
+    uint32_t argc_be = htobe32(abuf->argc);
+    if (write(fd, &argc_be, sizeof(uint32_t)) < 0) return 1;
+
+    for (size_t i = 0; i < abuf->argc; i++) {
+        if (writestring(fd, abuf->argv + i) < 0) return 1;
+    }
     return 0;
 }
 
 void freearguments(struct arguments *abuf) {
-    for(int i = 0; i < abuf->argc; i++) {
-        freestring(&(abuf->argv[i]));
+    for (int i = 0; i < abuf->argc; i++) {
+        freestring(abuf->argv + i);
     }
-    free((abuf)->argv);
+    free(abuf->argv);
 }
 
-int executearg(struct arguments *abuf) {
+uint16_t executearg(struct arguments *abuf) {
     pid_t p = fork();
     if (p == 0) {
         char **exec_argv = malloc((abuf->argc + 1) * sizeof(char *));
+        if (!exec_argv) { 
+            perror("malloc"); exit(1); 
+        }
+
         for (uint32_t i = 0; i < abuf->argc; i++) {
             exec_argv[i] = (char *)abuf->argv[i].data;
         }
@@ -38,13 +50,24 @@ int executearg(struct arguments *abuf) {
         perror("execvp");
         free(exec_argv);
         exit(1);
-    } else {
+    }
+    else {
         int status;
         wait(&status);
         if (WIFEXITED(status)) {
-            return WEXITSTATUS(status);
+            return (uint16_t) WEXITSTATUS(status);
         }
-        return 1;
+        return 0xffff;
     }
-    
+}
+
+int arguments_to_string(struct arguments a,struct string *s) {
+    struct string space = {1, (uint8_t*) " "};
+    for (int i = 0; i < a.argc; i++) {
+        if (catstring(s, a.argv[i]) == 1) return 1;
+        if (i != a.argc - 1) {
+            if (catstring(s, space) == 1) return 1;
+        }
+    }
+    return 0;
 }

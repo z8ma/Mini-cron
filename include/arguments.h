@@ -11,7 +11,9 @@ struct arguments {
 };
 
 int readarguments(int fd, struct arguments *abuf);
+int writearguments(int fd, struct arguments *abuf);
 void freearguments(struct arguments *abuf);
-int executearg(struct arguments *abuf);
+uint16_t executearg(struct arguments *abuf);
+int arguments_to_string(struct arguments a,struct string *s);
 
 #endif
