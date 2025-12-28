@@ -2,6 +2,7 @@
 #include "command.h"
 #include "timing.h"
 #include "string_uint.h"
+#include "times_exitcodes.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -65,27 +66,25 @@ int redirectstderr(char *path_task) {
     return 0;
 }
 
-int writetask_times_exitcodes(char *path_task, uint16_t exitcodes) {
-    uint64_t now = htobe64(difftime(time(NULL), 0));
+int writelastrun(char *path_task, struct run *r) {
     char path_task_times_exitcodes[PATH_MAX];
     snprintf(path_task_times_exitcodes, sizeof(path_task_times_exitcodes), "%s/times-exitcodes", path_task);
     ssize_t fd_times_exitcodes = open(path_task_times_exitcodes, O_WRONLY | O_APPEND);
     if (fd_times_exitcodes < 0) return 1;
-    if (write(fd_times_exitcodes, &now, sizeof(uint64_t)) < 0) return 1;
-    if (write(fd_times_exitcodes, &exitcodes, sizeof(uint16_t)) < 0) return 1;
+    if (writerun(fd_times_exitcodes, r) == 1) return 1;
     return 0;
 }
 
 int executetask(char *path_task) {
-    struct timing task_timing;
-    if (readtask_timing(path_task, &task_timing) == 1) return 1;
-    if (is_it_time(&task_timing) == 1) {
-        struct command task_command;
-        if (readtask_command(path_task, &task_command) == 1) return 1;
+    struct task t;
+    if (readtask_timing(path_task, &t.task_timing) == 1) return 1;
+    if (is_it_time(&t.task_timing) == 1) {
+        if (readtask_command(path_task, &t.task_command) == 1) return 1;
         if (redirectstdout(path_task) == 1) return 1;
         if (redirectstderr(path_task) == 1) return 1;
-        if (writetask_times_exitcodes(path_task, htobe16(executecmd(&task_command))) == 1) return 1;
-        freecmd(&task_command);
+        struct run r = {time(NULL), executecmd(&t.task_command)};
+        if (writelastrun(path_task, &r) == 1) return 1;
+        freecmd(&t.task_command);
     }
     return 0;
 }

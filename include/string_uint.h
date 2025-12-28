@@ -7,7 +7,6 @@
 struct string {
     uint32_t length;
     uint8_t *data;
-
 };
 
 int readstring(int fd, struct string *sbuf);
