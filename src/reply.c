@@ -27,9 +27,9 @@ int readreply(int fdreply, struct reply *rbuf, uint16_t opcode) {
                 break;
             case TX_OPCODE :
                 uint32_t nbruns_be;
-            if (read(fdreply, &nbruns_be, sizeof(uint32_t)) < 0) return 1;
+                if (read(fdreply, &nbruns_be, sizeof(uint32_t)) < 0) return 1;
                 rbuf->content.tec.nbruns = be32toh(nbruns_be); 
-            if (read_times_exitcodes(fdreply, &(rbuf->content.tec)) == 1) return 1;
+                if (read_times_exitcodes(fdreply, &(rbuf->content.tec)) == 1) return 1;
                 break;
             case SO_OPCODE : 
             case SE_OPCODE :
@@ -64,6 +64,7 @@ int writereply(int fdreply, struct reply *rbuf, uint16_t opcode) {
                 if (writestring(fdreply, &(rbuf->content.output)) == 1) return 1;
                 break;
             case TM_OPCODE :
+                write_times_exitcodes(fdreply, &rbuf->content.tec);
                 break;
             default :
                 uint64_t taskid_be = htobe64(rbuf->content.taskid);
