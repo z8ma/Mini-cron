@@ -103,6 +103,7 @@ int handle_times_exitcodes_request(struct request req, struct reply *rbuf) {
         perror("erreur fstat");
         return 1;
     }
+    rbuf->content.tec.nbruns = 0;
     read_times_exitcodes(fd, &(rbuf->content.tec));
     return 0;
 }
@@ -138,53 +139,43 @@ int handle_std_request(struct request req, struct reply *rbuf) {
     return 0;
 }
 
-int handle_request(int fdrequest, int fdreply) {
-    struct request req;
-    struct reply rep;
-    if (readrequest(fdrequest, &req) == 1) return 1;
+int handle_request(struct request req, struct reply *rep) {
     switch (req.opcode) {
         case LS_OPCODE :
-            handle_list_request(req, &rep);
+            handle_list_request(req, rep);
             break;
         case CR_OPCODE :
-            handle_creat_request(req, &rep);
+            handle_creat_request(req, rep);
             break;
         case CB_OPCODE :
-            handle_combine_request(req, &rep);
+            handle_combine_request(req, rep);
             break;
         case RM_OPCODE :
-            handle_remove_request(req, &rep);
+            handle_remove_request(req, rep);
             break;
         case TX_OPCODE :
-            handle_times_exitcodes_request(req, &rep);
+            handle_times_exitcodes_request(req, rep);
             break;
         case SO_OPCODE :
         case SE_OPCODE :
-            handle_std_request(req, &rep);  
+            handle_std_request(req, rep);  
             break;
         case TM_OPCODE :
             exit(0);
             break;
     }
-
-    writereply(fdreply, &rep, req.opcode);
-    freereply(&rep, req.opcode);
-    freerequest(&req);
     return 0;
 }
 
-int handle_reply(int fdreply, uint16_t opcode) {
+int handle_reply(struct reply rep, uint16_t opcode, struct string *msg) {
     int ret = 0;
-    struct reply rep;
-    struct string msg = {0, NULL};
-    readreply(fdreply, &rep, opcode);
     if (rep.anstype == OK_ANSTYPE) {
         switch (opcode) {
             case LS_OPCODE :
                 struct string rtl = {1, (uint8_t*)"\n"};
                 for (int i = 0; i < rep.content.list.nbtasks; i++) {
-                    task_to_string(rep.content.list.tasks[i], &msg);
-                    catstring(&msg, rtl);
+                    task_to_string(rep.content.list.tasks[i], msg);
+                    catstring(msg, rtl);
                 }
                 break;
             case CR_OPCODE :
@@ -194,11 +185,11 @@ int handle_reply(int fdreply, uint16_t opcode) {
             case RM_OPCODE :
                 break;
             case TX_OPCODE :
-                times_exitcodes_to_string(rep.content.tec, &msg);
+                times_exitcodes_to_string(rep.content.tec, msg);
                 break;
             case SO_OPCODE :
             case SE_OPCODE :
-                catstring(&msg, rep.content.output);
+                catstring(msg, rep.content.output);
                 break;
             case TM_OPCODE :
                 exit(0);
@@ -206,9 +197,6 @@ int handle_reply(int fdreply, uint16_t opcode) {
         }
     } else {
         ret = 1;
-    }
-    write(STDOUT_FILENO, msg.data, msg.length);
-    freereply(&rep, opcode);
-    freestring(&msg);     
+    }   
     return ret;
 }

@@ -18,30 +18,34 @@
 int main(int argc, char *argv[]) {
     int opt;
     struct request req;
-    req.opcode=0;
-    char *custom_dir = NULL;
+    struct reply rep;
+    struct string msg = {0, NULL};
+    req.opcode = 0;
+    char pipes[PATH_MAX];
+    int popt = 0;
     while ((opt = getopt(argc, argv, "p:lx:o:e:")) != -1) {
         switch (opt) {
             case 'p':
-            custom_dir = optarg; 
-            break;
-        case 'l':
-            req.opcode = LS_OPCODE;
-            break;
-        case 'x':
-            req.opcode = TX_OPCODE;
-            string_to_uint64(&(req.content.taskid), optarg);
-            break;
+                popt = 1;
+                strcpy(pipes, optarg); 
+                break;
+            case 'l':
+                req.opcode = LS_OPCODE;
+                break;
+            case 'x':
+                req.opcode = TX_OPCODE;
+                string_to_uint64(&(req.content.taskid), optarg);
+                break;
 
-        case 'o':
-            req.opcode = SO_OPCODE;
-            string_to_uint64(&(req.content.taskid), optarg);
-            break;
+            case 'o':
+                req.opcode = SO_OPCODE;
+                string_to_uint64(&(req.content.taskid), optarg);
+                break;
 
-        case 'e':
-            req.opcode = SE_OPCODE;
-            string_to_uint64(&(req.content.taskid), optarg);
-            break;
+            case 'e':
+                req.opcode = SE_OPCODE;
+                string_to_uint64(&(req.content.taskid), optarg);
+                break;
         }
     }
 
@@ -50,36 +54,37 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    char pipes_dir[PATH_MAX];
-    
-    int len;
-    if (custom_dir != NULL) {
-        len = snprintf(pipes_dir, sizeof(pipes_dir), "%s", custom_dir);
-    } else {
-        len = snprintf(pipes_dir, sizeof(pipes_dir), "/tmp/%s/erraid/pipes", getenv("USER"));
-    } 
+    if (!popt) {
+        snprintf(pipes, sizeof(pipes), "/tmp/%s/erraid/pipes", getenv("USER"));
+    }
+    int len = strlen(pipes); 
 
-    char pipes[PATH_MAX];
-    snprintf(pipes, sizeof(pipes) - len, "%s/erraid-request-pipe", pipes_dir);
-    int fdreq = open(pipes, O_WRONLY | O_NONBLOCK);
+    strcat(pipes, "/erraid-request-pipe");
+    int fdreq = open(pipes, O_WRONLY);
+    pipes[len] = '\0';
     if (fdreq < 0) {
         perror("Erreur ouverture pipe request");
         return 1;
     }
     writerequest(fdreq, &req);
+    close(fdreq);
 
-    snprintf(pipes, sizeof(pipes) - len, "%s/erraid-reply-pipe", pipes_dir);
+    strcat(pipes, "/erraid-reply-pipe");
     int fdreply = open(pipes, O_RDONLY);
+    
     if (fdreply < 0) {
         perror("Erreur ouverture pipe reply");
-        close(fdreq);
         return 1;
     }
-    int ret = handle_reply(fdreply, req.opcode);
 
+    readreply(fdreply, &rep, req.opcode);
+    int ret = handle_reply(rep, req.opcode, &msg);
+    write(STDOUT_FILENO, msg.data, msg.length);
+    
+    freestring(&msg);
+    freereply(&rep, req.opcode);
     freerequest(&req);
 
-    close(fdreq);
     close(fdreply);
     return ret;
 }
