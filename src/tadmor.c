@@ -34,17 +34,16 @@ int main(int argc, char *argv[]) {
                 break;
             case 'x':
                 req.opcode = TX_OPCODE;
-                string_to_uint64(&(req.content.taskid), optarg);
+                string_to_uint64((struct string) {strlen(optarg), (uint8_t*) strdup(optarg)} , &(req.content.taskid));
                 break;
 
             case 'o':
                 req.opcode = SO_OPCODE;
-                string_to_uint64(&(req.content.taskid), optarg);
+                string_to_uint64((struct string) {strlen(optarg), (uint8_t*) strdup(optarg)} , &(req.content.taskid));
                 break;
-
             case 'e':
                 req.opcode = SE_OPCODE;
-                string_to_uint64(&(req.content.taskid), optarg);
+                string_to_uint64((struct string) {strlen(optarg), (uint8_t*) strdup(optarg)} , &(req.content.taskid));
                 break;
         }
     }

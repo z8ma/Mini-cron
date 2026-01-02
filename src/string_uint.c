@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <string.h>
 
 int readstring(int fd, struct string *sbuf) {
     uint32_t length_be;
@@ -62,4 +63,25 @@ int uint_to_string(uint64_t n, struct string *s) {
     snprintf((char*)(s->data + s->length), len + 1,"%zu", n);
     s->length +=len;
     return 0;
+}
+
+void insertion_sort_strings(struct string *arr, uint32_t n) {
+    for (uint32_t i = 1; i < n; i++) {
+        struct string key = arr[i];
+        int32_t j = i - 1;
+
+        while (j >= 0 && arr[j].length > key.length) {
+            arr[j + 1] = arr[j];
+            j--;
+        }
+        arr[j + 1] = key;
+    }
+}
+
+
+void string_to_uint64(struct string s, uint64_t *n) {
+    *n = 0;
+    for (int i = 0; i < s.length; i++) {
+        *n = (*n) * 10 + (s.data[i] - '0');
+    }
 }

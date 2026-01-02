@@ -6,6 +6,5 @@
 
 int handle_request(struct request req, struct reply *rep);
 int handle_reply(struct reply rep, uint16_t opcode, struct string *msg);
-void string_to_uint64(uint64_t *n, char *s);
 
 #endif

@@ -14,5 +14,6 @@ int readtiming(int fd, struct timing *tbuf);
 int writetiming(int fd, struct timing *tbuf);
 int is_it_time(struct timing *tbuf);
 int timing_to_string(struct timing t, struct string *s);
+int string_to_timing(struct string minutes, struct string hours, struct string daysofweek, struct timing *t);
 
 #endif

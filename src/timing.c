@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <string.h>
+#include <stdio.h>
 
 
 int readtiming(int fd, struct timing *tbuf) {
@@ -156,6 +158,150 @@ int timing_to_string(struct timing t, struct string *s) {
                 uint_to_string(pred, s);
             }
         }
+    }
+    return 0;
+}
+
+int string_to_timing(struct string minutes, struct string hours, struct string daysofweek, struct timing *t) {
+    if (strcmp("*", (char *) minutes.data) == 0) {
+        t->minutes = 0xfffffffffffffff;
+        minutes.length = 0;
+    } else if (strcmp("-", (char *) minutes.data) == 0) {
+        t->minutes = 0;
+        minutes.length = 0;
+    }
+    t->minutes = 0;
+    int pred = -1;
+    int duration = 0;
+    int value = -1;
+    for (int i = 0; i < minutes.length; i++) {
+        if (minutes.data[i] == ',') {
+            if (value == -1) {
+                return -1;
+            }
+            value = -1;
+            continue;
+        }
+        if (minutes.data[i] == '-') {
+            if (value == -1) {
+                return -1;
+            }
+            value = -1;
+            duration = 1;
+            continue;
+        }
+        if (minutes.data[i] - '0' > 9 || minutes.data[i] - '0' < 0) {
+            return minutes.data[i] + 1;
+        }
+        if (minutes.data[i + 1] - '0' <= 9 && minutes.data[i + 1] - '0' >= 0) {
+            value = (minutes.data[i] - '0') * 10 + minutes.data[i + 1] - '0';
+            i++;
+        } else {
+            value = minutes.data[i] - '0';
+        }
+        if (duration) {
+            printf("%d\n", pred);
+            for (int j = pred + 1; j < value; j++) {
+                t->minutes |= (1ULL << j);
+            }
+            printf("%d\n", value);
+            duration = 0;
+        }
+        t->minutes = t->minutes | (1ULL << value);
+        pred = value;
+    }
+
+
+    if (strcmp("*", (char *) hours.data) == 0) {
+        t->hours = 0xffffff;
+        hours.length = 0;
+    } else if (strcmp("-", (char *) hours.data) == 0) {
+        t->hours = 0;
+        hours.length = 0;
+    }
+    pred = -1;
+    duration = 0;
+    value = -1;
+    for (int i = 0; i < hours.length; i++) {
+        if (hours.data[i] == ',') {
+            if (value == -1) {
+                return -1;
+            }
+            value = -1;
+            continue;
+        }
+        if (hours.data[i] == '-') {
+            if (value == -1) {
+                return -1;
+            }
+            value = -1;
+            duration = 1;
+            continue;
+        }
+        if (hours.data[i] - '0' > 9 || hours.data[i] - '0' < 0) {
+            return hours.data[i] + 1;
+        }
+        if (hours.data[i + 1] - '0' <= 9 && hours.data[i + 1] - '0' >= 0) {
+            value = (hours.data[i] - '0') * 10 + hours.data[i + 1] - '0';
+            i++;
+        } else {
+            value = hours.data[i] - '0';
+        }
+        if (duration) {
+            for (int j = pred + 1; j < value; j++) {
+                t->hours |= (1 << j);
+            }
+            duration = 0;
+        }
+        t->hours = t->hours | (1 << value);
+        pred = value;
+    }
+    
+
+    if (strcmp("*", (char *) daysofweek.data) == 0) {
+        t->daysofweek = 0xff;
+        daysofweek.length = 0;
+    } else if (strcmp("-", (char *) daysofweek.data) == 0) {
+        t->daysofweek = 0;
+        daysofweek.length = 0;
+    }
+    pred = -1;
+    duration = 0;
+    value = -1;
+    for (int i = 0; i < daysofweek.length; i++) {
+        if (daysofweek.data[i] == ',') {
+            if (value == -1) {
+                return -1;
+            }
+            value = -1;
+            continue;
+        }
+        if (daysofweek.data[i] == '-') {
+            if (value == -1) {
+                return -1;
+            }
+            value = -1;
+            duration = 1;
+            continue;
+        }
+        if (daysofweek.data[i] - '0' > 9 || daysofweek.data[i] - '0' < 0) {
+            return daysofweek.data[i] + 1;
+        }
+        if (daysofweek.data[i + 1] - '0' <= 9 && daysofweek.data[i + 1] - '0' >= 0) {
+            value = (daysofweek.data[i] - '0') * 10 + daysofweek.data[i + 1] - '0';
+            i++;
+        } else {
+            value = daysofweek.data[i] - '0';
+        }
+        if (duration) {
+            printf("%d\n", pred);
+            for (int j = pred + 1; j < value; j++) {
+                t->daysofweek |= (1 << j);
+            }
+            duration = 0;
+        }
+        t->daysofweek = t->daysofweek | (1 << value);
+        pred = value;
     }
     return 0;
 }

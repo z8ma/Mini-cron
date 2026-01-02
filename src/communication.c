@@ -2,6 +2,7 @@
 #include "reply.h"
 #include "task.h"
 #include "times_exitcodes.h"
+#include "string_uint.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -19,25 +20,11 @@
 #include <stdio.h>
 #include <time.h>
 
-void insertion_sort2(char **arr, size_t n) {
-    for (size_t i = 1; i < n; i++) {
-        char *key = arr[i];
-        ssize_t j = i - 1;
-        while (j >= 0 && strcmp(arr[j], key) > 0) {
-            arr[j + 1] = arr[j];
-            j--;
-        }
-        arr[j + 1] = key;
-    }
-}
-
-void string_to_uint64(uint64_t *n, char *s) { *n = 0; while (*s) { *n = (*n) * 10 + (*s - '0'); s++; } }
-
 int handle_list_request(struct request req, struct reply *rbuf) {
     rbuf->anstype = OK_ANSTYPE;
     rbuf->content.list.nbtasks = 0;
 
-    char **names = NULL;
+    struct string *names = NULL;
     char path_task[PATH_MAX];
 
     DIR *dirp = opendir("tasks");
@@ -46,19 +33,25 @@ int handle_list_request(struct request req, struct reply *rbuf) {
     struct dirent *entry;
     while ((entry = readdir(dirp))) {
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 && (entry->d_type == DT_DIR)) {
-            names = realloc(names, (rbuf->content.list.nbtasks + 1) * sizeof(char *));
-            names[rbuf->content.list.nbtasks++] = strdup(entry->d_name);
+            names = realloc(names, (rbuf->content.list.nbtasks + 1) * sizeof(struct string));
+            names[rbuf->content.list.nbtasks].length = strlen(entry->d_name);
+            names[rbuf->content.list.nbtasks].data = malloc(names[rbuf->content.list.nbtasks].length + 1);
+            strcpy((char *) names[rbuf->content.list.nbtasks].data, entry->d_name);
+            rbuf->content.list.nbtasks++;
         }
     }
     closedir(dirp);
-    insertion_sort2(names, rbuf->content.list.nbtasks);
+    insertion_sort_strings(names, rbuf->content.list.nbtasks);
     rbuf->content.list.tasks = malloc(rbuf->content.list.nbtasks * sizeof(struct task));
     for (int i = 0; i < rbuf->content.list.nbtasks; i++) {
-        snprintf(path_task, sizeof(path_task), "tasks/%s", names[i]);
-        string_to_uint64(&((rbuf->content.list.tasks + i)->taskid), names[i]);
+        snprintf(path_task, sizeof(path_task), "tasks/%s", names[i].data);
+        string_to_uint64(names[i], &((rbuf->content.list.tasks + i)->taskid));
         readtask_timing(path_task, &((rbuf->content.list.tasks + i)->task_timing));
         readtask_command(path_task, &((rbuf->content.list.tasks + i)->task_command));
+        freestring(names + i);
     }
+    
+    free(names);
     return 0;
 }
 
