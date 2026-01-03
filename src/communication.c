@@ -154,7 +154,7 @@ int handle_request(struct request req, struct reply *rep) {
             handle_std_request(req, rep);  
             break;
         case TM_OPCODE :
-            exit(0);
+            rep->anstype = OK_ANSTYPE;
             break;
     }
     return 0;
@@ -185,7 +185,6 @@ int handle_reply(struct reply rep, uint16_t opcode, struct string *msg) {
                 catstring(msg, rep.content.output);
                 break;
             case TM_OPCODE :
-                exit(0);
                 break;
         }
     } else {

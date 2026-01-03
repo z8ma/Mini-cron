@@ -233,6 +233,9 @@ int main(int argc, char *argv[]) {
                 close(fd_pipe_reply);
                 return 0;
             }
+            if (opcode == TM_OPCODE) {
+                return 0;   
+            }
         }
     }
     return 0;

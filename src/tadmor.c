@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     req.opcode = 0;
     char pipes[PATH_MAX];
     int popt = 0;
-    while ((opt = getopt(argc, argv, "p:lx:o:e:")) != -1) {
+    while ((opt = getopt(argc, argv, "p:lx:o:e:q")) != -1) {
         switch (opt) {
             case 'p':
                 popt = 1;
@@ -45,11 +45,14 @@ int main(int argc, char *argv[]) {
                 req.opcode = SE_OPCODE;
                 string_to_uint64((struct string) {strlen(optarg), (uint8_t*) strdup(optarg)} , &(req.content.taskid));
                 break;
+            case 'q':
+                req.opcode = TM_OPCODE;
+                break;
         }
     }
 
     if (req.opcode == 0) {
-        fprintf(stderr, "Erreur : vous devez choisir une commande (-l, -x, -o ou -e).\n");
+        fprintf(stderr, "Erreur : vous devez choisir une commande (-l, -x, -o, -e ou -q).\n");
         return 1;
     }
 
