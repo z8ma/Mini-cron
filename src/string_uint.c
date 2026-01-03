@@ -31,6 +31,7 @@ void freestring(struct string *sbuf) {
     if (sbuf->data != NULL) {
         free(sbuf->data);
     }
+    sbuf->length = 0;
 }
 
 int catstring(struct string *newstring, struct string oldstring) {
@@ -79,9 +80,11 @@ void insertion_sort_strings(struct string *arr, uint32_t n) {
 }
 
 
-void string_to_uint64(struct string s, uint64_t *n) {
+int string_to_uint64(struct string s, uint64_t *n) {   
     *n = 0;
     for (int i = 0; i < s.length; i++) {
+        if (9 < s.data[i] - '0' ||  s.data[i] - '0' < 0) return 1;
         *n = (*n) * 10 + (s.data[i] - '0');
     }
+    return 0;
 }
