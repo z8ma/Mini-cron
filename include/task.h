@@ -13,6 +13,7 @@ struct task{
 
 int readtask(int fd, struct task *tbuf);
 int mkdirtask(char *path_task, struct task *tbuf);
+int rmdirtask(char *path_task);
 int readtask_timing(char *path_task, struct timing *task_timing);
 int readtask_command(char *path_task, struct command *task_command);
 int readstd(int fd,struct string *output);
