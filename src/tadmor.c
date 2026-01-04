@@ -206,23 +206,27 @@ int main(int argc, char *argv[]) {
                 req.opcode = TM_OPCODE;
                 break;
         }
-        if (req.opcode == CR_OPCODE && optind < argc) {
-            if (('a' <= argv[optind][0] && argv[optind][0] <= 'z') || ('A' <= argv[optind][0] && argv[optind][0] <= 'Z')) {
-                break;
-            }
-        } else if (req.opcode == CB_OPCODE && optind < argc && req.content.cr.content.combined.nbtasks == 0) {
-            req.content.cr.content.combined.tasksid = NULL;
-            while (optind < argc) {
-                uint64_t taskid;
-                struct string taskid_string = {strlen(argv[optind]), (uint8_t*) strdup(argv[optind])};
-                if (string_to_uint64(taskid_string, &taskid) == 0) {
-                    req.content.cr.content.combined.nbtasks++;
-                    req.content.cr.content.combined.tasksid = realloc(req.content.cr.content.combined.tasksid, req.content.cr.content.combined.nbtasks * sizeof(uint64_t));
-                    req.content.cr.content.combined.tasksid[req.content.cr.content.combined.nbtasks - 1] = taskid;
-                    optind++;
-                } else {
+
+        if (createopt && optind < argc) {
+            if (req.opcode == CR_OPCODE) {
+                if (('a' <= argv[optind][0] && argv[optind][0] <= 'z') || ('A' <= argv[optind][0] && argv[optind][0] <= 'Z')) {
                     break;
                 }
+            } else if (req.opcode == CB_OPCODE && req.content.cr.content.combined.nbtasks == 0) {
+                req.content.cr.content.combined.tasksid = NULL;
+                while (optind < argc) {
+                    uint64_t taskid;
+                    struct string taskid_string = {strlen(argv[optind]), (uint8_t*) strdup(argv[optind])};
+                    if (string_to_uint64(taskid_string, &taskid) == 0) {
+                        req.content.cr.content.combined.nbtasks++;
+                        req.content.cr.content.combined.tasksid = realloc(req.content.cr.content.combined.tasksid, req.content.cr.content.combined.nbtasks * sizeof(uint64_t));
+                        req.content.cr.content.combined.tasksid[req.content.cr.content.combined.nbtasks - 1] = taskid;
+                        optind++;
+                    } else {
+                        break;
+                    }
+                }
+                if (minutes.length > 0 || hours.length > 0 || daysofweek.length > 0) break;
             }
         }
 
