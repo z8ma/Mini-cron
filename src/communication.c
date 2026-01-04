@@ -56,8 +56,26 @@ int handle_list_request(struct request req, struct reply *rbuf) {
 }
 
 int handle_creat_request(struct request req, struct reply *rbuf) {
+    uint64_t taskid_be = 0;
     rbuf->anstype = OK_ANSTYPE;
-    // TODO fonction qui créer une tache dans task.h et renvoie l'id de cette tache
+    int fd = open("last-taskid", O_RDWR | O_CREAT, 0644);
+    struct stat st;
+    if (fstat(fd, &st) < 0)
+        return 1;
+    if (st.st_size != 0) {
+        read(fd, &taskid_be, sizeof(uint64_t));
+    }
+    struct task task = {be64toh(taskid_be) + 1, req.content.cr.task_timing, {SI_TYPE, {req.content.cr.content.args}}};
+    struct string path_task = {0, NULL};
+    catstring(&path_task, (struct string) {6, (uint8_t*) "tasks/"});
+    uint_to_string(task.taskid, &path_task);
+    mkdirtask((char*) path_task.data, &task);
+    freestring(&path_task);
+    rbuf->content.taskid = task.taskid;
+    taskid_be = htobe64(task.taskid);
+    lseek(fd, 0, SEEK_SET);
+    write(fd, &taskid_be, sizeof(uint64_t));
+    close(fd);
     return 0;
 }
 
@@ -162,18 +180,19 @@ int handle_request(struct request req, struct reply *rep) {
 
 int handle_reply(struct reply rep, uint16_t opcode, struct string *msg) {
     int ret = 0;
+    struct string rtl = {1, (uint8_t*) "\n"};
     if (rep.anstype == OK_ANSTYPE) {
         switch (opcode) {
             case LS_OPCODE :
-                struct string rtl = {1, (uint8_t*)"\n"};
                 for (int i = 0; i < rep.content.list.nbtasks; i++) {
                     task_to_string(rep.content.list.tasks[i], msg);
                     catstring(msg, rtl);
                 }
                 break;
             case CR_OPCODE :
-                break;
             case CB_OPCODE :
+                uint_to_string(rep.content.taskid, msg);
+                catstring(msg, rtl);
                 break;
             case RM_OPCODE :
                 break;

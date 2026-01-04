@@ -18,12 +18,13 @@ struct command {
 
 
 
-int readcmd_path(char *path, struct command *cbuf);
-int readcmd_fd(int fd, struct command *cbuf);
+int readdircmd(char *path, struct command *cbuf);
+int readcmd(int fd, struct command *cbuf);
 int writecmd(int fd, struct command *cbuf);
 void freecmd(struct command *cbuf);
 uint16_t executecmd(struct command *cbuf);
 int command_to_string(struct command c,struct string *s);
+int mkdircmd(char *pathcmd, struct command *cbuf);
 
 #define SI_TYPE 0X5349  // 'SI'
 #define SQ_TYPE 0X5351  // 'SQ'

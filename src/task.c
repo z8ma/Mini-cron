@@ -17,7 +17,22 @@ int readtask(int fd, struct task *tbuf){
     if (read(fd, &taskid_be, sizeof(uint64_t)) < 0) return 1;
     tbuf->taskid = be64toh(taskid_be);
     if (readtiming(fd, &(tbuf->task_timing)) == 1) return 1;
-    if (readcmd_fd(fd, &(tbuf->task_command)) == 1) return 1;
+    if (readcmd(fd, &(tbuf->task_command)) == 1) return 1;
+    return 0;
+}
+
+int mkdirtask(char *path_task, struct task *tbuf) {
+    if (mkdir(path_task, 0744) < 0) perror("purée");
+    char pathfic[PATH_MAX];
+    snprintf(pathfic, sizeof(pathfic), "%s/cmd", path_task);
+    mkdircmd(pathfic, &tbuf->task_command);
+    snprintf(pathfic, sizeof(pathfic), "%s/timing", path_task);
+    int fd = creat(pathfic, 0744);
+    writetiming(fd, &tbuf->task_timing);
+    close(fd);
+    snprintf(pathfic, sizeof(pathfic), "%s/times-exitcodes", path_task);
+    fd = creat(pathfic, 0744);
+    close(fd);
     return 0;
 }
 
@@ -42,7 +57,7 @@ int readtask_timing(char *path_task, struct timing *task_timing) {
 int readtask_command(char *path_task, struct command *task_command) {
     char path_task_command[PATH_MAX];
     snprintf(path_task_command, sizeof(path_task_command), "%s/cmd", path_task);
-    if (readcmd_path(path_task_command, task_command) == 1) return 1;
+    if (readdircmd(path_task_command, task_command) == 1) return 1;
     return 0;
 }
 

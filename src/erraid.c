@@ -166,7 +166,6 @@ int main(int argc, char *argv[]) {
     strcat(request_fifo, "erraid-request-pipe");
     if (mkfifo(request_fifo, 0644) < 0) {
         if (errno != EEXIST) {
-            printf("%s\n", request_fifo);
             perror("mkfifo1");
             return 1;
         }
@@ -180,7 +179,6 @@ int main(int argc, char *argv[]) {
     strcat(reply_fifo, "erraid-reply-pipe");
     if (mkfifo(reply_fifo, 0644) < 0) {
         if (errno != EEXIST) {
-            printf("%s\n", reply_fifo);
             perror("mkfifo2");
             return 1;
         }
@@ -207,6 +205,7 @@ int main(int argc, char *argv[]) {
     int fd = open("/dev/null", O_RDWR);
     dup2(fd, STDIN_FILENO);
     close(fd);
+    
 
     struct request request;
     struct reply reply;
@@ -234,6 +233,7 @@ int main(int argc, char *argv[]) {
                 return 0;
             }
             if (opcode == TM_OPCODE) {
+                close(fd_pipe_request);
                 return 0;   
             }
         }

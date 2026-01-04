@@ -48,7 +48,6 @@ int main(int argc, char *argv[]) {
         switch (opt) {
             case 'c':
                 if (createopt) {
-                    printf("%d\n", createopt);
                     write(STDERR_FILENO, errmsg[2], strlen(errmsg[2]));
                     return 1;
                 } else if (consultopt) {

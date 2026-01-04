@@ -25,7 +25,7 @@ void insertion_sort(char **arr, size_t n) {
     }
 }
 
-int readcmd_path(char *filename, struct command *cbuf) {
+int readdircmd(char *filename, struct command *cbuf) {
     struct stat st;
     int fd;
     char path[PATH_MAX];
@@ -70,7 +70,7 @@ int readcmd_path(char *filename, struct command *cbuf) {
 
         for (int i = 0; i < cbuf->content.combined.nbcmds; i++) {
             snprintf(path, strlen(filename) + strlen(names[i]) + 2, "%s/%s", filename, names[i]);
-            if (readcmd_path(path, (cbuf->content.combined.cmds) + i) != 0) {
+            if (readdircmd(path, (cbuf->content.combined.cmds) + i) != 0) {
                 free(names);
                 closedir(dirp);
                 return 1;
@@ -83,7 +83,7 @@ int readcmd_path(char *filename, struct command *cbuf) {
     return 0;
 }
 
-int readcmd_fd(int fd, struct command *cbuf) {
+int readcmd(int fd, struct command *cbuf) {
     uint16_t type_be;
     if (read(fd, &type_be, sizeof(uint16_t))!= sizeof(uint16_t)) return 1;
     cbuf->type = be16toh(type_be);
@@ -96,7 +96,7 @@ int readcmd_fd(int fd, struct command *cbuf) {
         cbuf->content.combined.cmds = malloc(cbuf->content.combined.nbcmds * sizeof(struct command));
 
         for (int i = 0; i < cbuf->content.combined.nbcmds; i++) {
-            if (readcmd_fd(fd, cbuf->content.combined.cmds + i) == 1) return 1;
+            if (readcmd(fd, cbuf->content.combined.cmds + i) == 1) return 1;
         }
     }
     return 0;
@@ -107,11 +107,34 @@ int writecmd(int fd, struct command *cbuf) {
     if (write(fd, &type_be, sizeof(uint16_t))!= sizeof(uint16_t)) return 1;
     if (cbuf->type == SI_TYPE) {
         if (writearguments(fd, &(cbuf->content.args)) == 1) return 1;
-    } else if (cbuf->type == SQ_TYPE) {
+    } else {
         uint32_t nbcmds_be = htobe32(cbuf->content.combined.nbcmds);
         if (write(fd, &nbcmds_be, sizeof(uint32_t)) !=sizeof(uint32_t)) return 1;
         for (int i = 0; i < cbuf->content.combined.nbcmds; i++) {
             if (writecmd(fd, cbuf->content.combined.cmds + i) == 1) return 1;
+        }
+    }
+    return 0;
+}
+
+int mkdircmd(char *pathcmd, struct command *cbuf) {
+    mkdir(pathcmd, 0744);
+    char type[PATH_MAX];
+    snprintf(type, sizeof(type), "%s/type", pathcmd);
+    int fd_type = creat(type, 0644);
+    uint16_t type_be = htobe16(cbuf->type);
+    if (write(fd_type, &type_be, sizeof(uint16_t))!= sizeof(uint16_t)) return 1;
+    close(fd_type);
+    if (cbuf->type == SI_TYPE) {
+        char argument[PATH_MAX];
+        snprintf(argument, sizeof(argument), "%s/argv", pathcmd);
+        int fd_argument = creat(argument, 0644);
+        writearguments(fd_argument, &cbuf->content.args);
+    } else {
+        for (int i = 0; i < cbuf->content.combined.nbcmds; i++) {
+            struct string pathsubcmd = {strlen(pathcmd), (uint8_t*) pathcmd};
+            uint_to_string(i, &pathsubcmd);
+            mkdircmd((char*) pathsubcmd.data, cbuf->content.combined.cmds + i);
         }
     }
     return 0;
