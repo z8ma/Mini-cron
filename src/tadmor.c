@@ -42,9 +42,6 @@ int main(int argc, char *argv[]) {
     int popt = 0;
     int qopt = 0;
     while ((opt = getopt(argc, argv, "c:s:p:i: m:H:d:n lx:o:e: P:q")) != -1) {
-        if (qopt) {
-            break;
-        }
         switch (opt) {
             case 'c':
                 if (createopt) {
@@ -227,6 +224,10 @@ int main(int argc, char *argv[]) {
                     break;
                 }
             }
+        }
+
+        if (qopt) {
+            break;
         }
     }
 

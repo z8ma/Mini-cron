@@ -11,6 +11,8 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <string.h>
+#include <dirent.h>
 
 int readtask(int fd, struct task *tbuf){
     uint64_t taskid_be;
@@ -22,15 +24,17 @@ int readtask(int fd, struct task *tbuf){
 }
 
 int mkdirtask(char *path_task, struct task *tbuf) {
-    if (mkdir(path_task, 0744) < 0) perror("purée");
+    if (mkdir(path_task, 0744) < 0) return 1;
     char pathfic[PATH_MAX];
     snprintf(pathfic, sizeof(pathfic), "%s/cmd", path_task);
     mkdircmd(pathfic, &tbuf->task_command);
-    snprintf(pathfic, sizeof(pathfic), "%s/timing", path_task);
+    pathfic[strlen(path_task)] = '\0';
+    strcat(pathfic, "/timing");
     int fd = creat(pathfic, 0744);
     writetiming(fd, &tbuf->task_timing);
     close(fd);
-    snprintf(pathfic, sizeof(pathfic), "%s/times-exitcodes", path_task);
+    pathfic[strlen(path_task)] = '\0';
+    strcat(pathfic, "/times-exitcodes");
     fd = creat(pathfic, 0744);
     close(fd);
     return 0;
