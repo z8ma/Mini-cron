@@ -40,6 +40,32 @@ int mkdirtask(char *path_task, struct task *tbuf) {
     return 0;
 }
 
+int rmdirtask(char *path_task) {
+    int len = strlen(path_task);
+    char path_fic[strlen(path_task) + NAME_MAX];
+    strcpy(path_fic, path_task);
+    DIR *dirp = opendir(path_task);
+    if (!dirp) return 1;
+
+    struct dirent *entry;
+    while ((entry = readdir(dirp))) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if ((entry->d_type == DT_DIR)) {
+            strcat(path_fic, "/");
+            strcat(path_fic, entry->d_name);
+            rmdirtask(path_fic);
+            path_fic[len] = '\0';
+        } else {
+            strcat(path_fic, "/");
+            strcat(path_fic, entry->d_name);
+            unlink(path_fic);
+            path_fic[len] = '\0';
+        }
+    }
+    rmdir(path_task);
+    return 0;
+}
+
 int writetask(int fd, struct task *tbuf){
     uint64_t taskid_be = htobe64(tbuf->taskid);
     if (write(fd, &taskid_be, sizeof(uint64_t)) < 0) return 1;
