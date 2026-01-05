@@ -94,7 +94,7 @@ int readtask_command(char *path_task, struct command *task_command) {
 int redirectstdout(char *path_task) {
     char path_task_stdout[PATH_MAX];
     snprintf(path_task_stdout, sizeof(path_task_stdout), "%s/stdout", path_task);
-    ssize_t fd_stdout = open(path_task_stdout, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    int fd_stdout = open(path_task_stdout, O_WRONLY | O_TRUNC | O_CREAT, 0644);
     if (fd_stdout < 0) return 1;
     if (dup2(fd_stdout, STDOUT_FILENO) == -1) return 1;
     close(fd_stdout);
@@ -104,7 +104,7 @@ int redirectstdout(char *path_task) {
 int redirectstderr(char *path_task) {
     char path_task_stderr[PATH_MAX];
     snprintf(path_task_stderr, sizeof(path_task_stderr), "%s/stderr", path_task);
-    ssize_t fd_stderr = open(path_task_stderr, O_WRONLY | O_TRUNC| O_CREAT, 0644);
+    int fd_stderr = open(path_task_stderr, O_WRONLY | O_TRUNC| O_CREAT, 0644);
     if (fd_stderr < 0) return 1;
     if (dup2(fd_stderr, STDERR_FILENO) == -1) return 1;
     close(fd_stderr);

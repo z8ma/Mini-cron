@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <time.h>
+#include <sys/time.h>
 
 pid_t fork_detached() {
     pid_t p = fork();
@@ -38,8 +38,9 @@ int select_pipe_request_until_next_minute(int fd_pipe_request, struct request *r
     FD_SET(fd_pipe_request, &fdreads);
 
     struct timeval tv;
-    tv.tv_sec = 60 - (time(NULL) % 60);
-    tv.tv_usec = 0;
+    gettimeofday(&tv, NULL);
+    tv.tv_sec = 59 - (tv.tv_sec % 60);
+    tv.tv_usec = (1000000 - tv.tv_usec) % 1000000 + 1;
     int ret = select(fd_pipe_request + 1, &fdreads, NULL, NULL, &tv);
     if (ret == 1) {
         readrequest(fd_pipe_request, req);
@@ -202,7 +203,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    int fd = open("/dev/null", O_RDWR);
+    int fd = open("/dev/null", O_RDONLY);
     dup2(fd, STDIN_FILENO);
     close(fd);
     
