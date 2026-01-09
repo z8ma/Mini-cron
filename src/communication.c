@@ -69,7 +69,6 @@ int handle_creat_request(struct request req, struct reply *rbuf) {
     char path_task[PATH_MAX];
     snprintf(path_task, sizeof(path_task), "tasks/%zu/", task.taskid);
     mkdirtask(path_task, &task);
-    freestring(&path_task);
     rbuf->content.taskid = task.taskid;
     taskid_be = htobe64(task.taskid);
     lseek(fd, 0, SEEK_SET);
@@ -178,7 +177,7 @@ int handle_std_request(struct request req, struct reply *rbuf) {
             rbuf->anstype = ER_ANSTYPE;
             rbuf->content.errcode = NR_ERRCODE;
             return 0;
-    }
+        }
     } else {
         snprintf(path_std + len, sizeof(path_std) - len, "stderr");
         if (stat(path_std, &st) < 0) {
@@ -234,10 +233,9 @@ int handle_reply(struct reply rep, uint16_t opcode, struct string *msg) {
                 break;
             case CR_OPCODE :
             case CB_OPCODE :
+            case RM_OPCODE :
                 uint_to_string(rep.content.taskid, msg);
                 catstring(msg, rtl);
-                break;
-            case RM_OPCODE :
                 break;
             case TX_OPCODE :
                 times_exitcodes_to_string(rep.content.tec, msg);

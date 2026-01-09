@@ -37,6 +37,7 @@ int readreply(int fdreply, struct reply *rbuf, uint16_t opcode) {
                 break;
             case CR_OPCODE :
             case CB_OPCODE :
+            case RM_OPCODE :
                 uint64_t taskid_be;
                 if (read(fdreply, &taskid_be, sizeof(uint64_t)) < 0) return 1;
                 rbuf->content.taskid =  be64toh(taskid_be);
