@@ -248,6 +248,15 @@ int handle_reply(struct reply rep, uint16_t opcode, struct string *msg) {
                 break;
         }
     } else {
+        dup2(STDERR_FILENO, STDOUT_FILENO);
+        switch (rep.content.errcode) {
+            case NF_ERRCODE :
+                catstring(msg, (struct string) {strlen("Identifiant de tâche non trouvé\n"), (uint8_t*) "Identifiant de tâche non trouvé\n"});
+                break;
+            case NR_ERRCODE :
+                catstring(msg, (struct string) {strlen("La tâche n'a pas encore été exécutée au moins une fois\n"), (uint8_t*) "La tâche n'a pas encore été exécutée au moins une fois\n"});
+                break;
+        }
         ret = 1;
     }   
     return ret;
