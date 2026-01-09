@@ -85,9 +85,17 @@ int handle_combine_request(struct request req, struct reply *rbuf) {
 }
 
 int handle_remove_request(struct request req, struct reply *rbuf) {
+    struct stat st;
     char path_task[PATH_MAX];
-    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
-    // TODO fonction qui supprime une tache dans task.h et renvoie si la supreesion à échoué ou non
+    snprintf(path_task, sizeof(path_task), "tasks/%zu/", req.content.taskid);
+    if (stat(path_task, &st) < 0) {
+        rbuf->anstype = ER_ANSTYPE;
+        rbuf->content.errcode = NF_ERRCODE;
+        return 0;
+    }
+    rmdirtask(path_task);
+    rbuf->anstype = OK_ANSTYPE;
+    rbuf->content.taskid =  req.content.taskid;
     return 0;
 }
 

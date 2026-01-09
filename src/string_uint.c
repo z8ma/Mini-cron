@@ -8,13 +8,19 @@
 
 int readstring(int fd, struct string *sbuf) {
     uint32_t length_be;
-    if (read(fd, &length_be, sizeof(uint32_t)) < 0) return 1;
+    if (read(fd, &length_be, sizeof(uint32_t)) != sizeof(uint32_t)) return 1;
     sbuf->length = be32toh(length_be);
 
     sbuf->data = malloc((sbuf->length + 1) * sizeof(uint8_t));
     if(!sbuf->data) return 1;
 
-    if (read(fd, sbuf->data, sbuf->length * sizeof(uint8_t)) != (ssize_t)sbuf->length * sizeof(uint8_t)) return 1;
+    ssize_t nbreadtotal = 0;
+    ssize_t nbread = 0;
+    while (nbreadtotal != (ssize_t)(sbuf->length)) {
+        nbread = read(fd, sbuf->data + nbreadtotal, sbuf->length * sizeof(uint8_t) - nbreadtotal);
+        if (nbread < 0) return 1;
+        nbreadtotal += nbread;
+    }
     sbuf->data[sbuf->length] ='\0';
     return 0;
 }
@@ -23,7 +29,13 @@ int writestring(int fd, struct string *sbuf) {
     uint32_t length_be = htobe32(sbuf->length);
     if (write(fd, &length_be, sizeof(uint32_t)) != sizeof(uint32_t)) return 1;
 
-    if (write(fd, sbuf->data,sbuf->length * sizeof(uint8_t)) != (ssize_t)sbuf->length * sizeof(uint8_t)) return 1;
+    ssize_t nbwritetotal = 0;
+    ssize_t nbwrite = 0;
+    while (nbwritetotal != (ssize_t)sbuf->length) {
+        nbwrite = write(fd, sbuf->data + nbwritetotal, sbuf->length * sizeof(uint8_t) - nbwritetotal);
+        if (nbwrite < 0) return 1;
+        nbwritetotal += nbwrite;
+    }
     return 0;
 }
 

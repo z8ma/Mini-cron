@@ -87,7 +87,6 @@ int timing_to_string(struct timing t, struct string *s) {
             } else if (duration) {
                 duration = 0;
                 uint_to_string(pred, s);
-                catstring(s, comma);
             }
         }
     }
@@ -122,7 +121,6 @@ int timing_to_string(struct timing t, struct string *s) {
             } else if (duration) {
                 duration = 0;
                 uint_to_string(pred, s);
-                catstring(s, comma);
             }
         }
     }
@@ -158,7 +156,6 @@ int timing_to_string(struct timing t, struct string *s) {
             } else if (duration) {
                 duration = 0;
                 uint_to_string(pred, s);
-                catstring(s, comma);
             }
         }
     }

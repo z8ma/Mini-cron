@@ -50,25 +50,27 @@ int select_pipe_request_until_next_minute(int fd_pipe_request, struct request *r
 
 int check_tasks() {
     struct dirent *entry;
-    char path_task[27] = "tasks/";
     struct stat st;
-    DIR *dirp = opendir(path_task);
+    DIR *dirp = opendir("tasks");
     if (!dirp) {
         perror("opendir");
         return 1;
     }
     while ((entry = readdir(dirp))) {
-        strcat(path_task, entry->d_name);
+        char path_task[PATH_MAX];
+        snprintf(path_task, sizeof(path_task), "tasks/%s", entry->d_name);
         if (stat(path_task, &st) < 0) {
+            closedir(dirp);
             perror("stat");
             return 1;
         }
         if (S_ISDIR(st.st_mode) && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
             pid_t p = fork_detached();
             if (p == 0) {
+                closedir(dirp);
                 executetask(path_task);
-                _exit(0);
-                }
+                exit(0);
+            }
         }
         path_task[6] = '\0';
     }
@@ -144,6 +146,8 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         else if (p > 0) {
+            free(run_directori);
+            free(pipes_directori);
             return 0;
         }
         else {
@@ -156,6 +160,8 @@ int main(int argc, char *argv[]) {
                 perror("fork");
                 return 1;
             } else if (p > 0) {
+                free(run_directori);
+                free(pipes_directori);
                 return 0;
             }
         }
@@ -192,6 +198,7 @@ int main(int argc, char *argv[]) {
     // Déplacement jusqu'au dossier dans lequel travaille erraid
     if (chdir(run_directori) < 0) {
         perror("chdir");
+        free(run_directori);
         return 1;
     }
     free(run_directori);
@@ -220,23 +227,24 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
         } else {
-            handle_request(request, &reply);
-            uint16_t opcode = request.opcode;
-            freerequest(&request);
             pid_t p = fork_detached();
             if (p < 0) {
+                freerequest(&request);
                 return 1;
             } else if (p == 0) {
+                handle_request(request, &reply);
                 int fd_pipe_reply = open(abs_reply_fifo, O_WRONLY);
-                writereply(fd_pipe_reply, &reply, opcode);
-                freereply(&reply, opcode);
+                writereply(fd_pipe_reply, &reply, request.opcode);
+                freereply(&reply, request.opcode);
+                freerequest(&request);
                 close(fd_pipe_reply);
                 return 0;
             }
-            if (opcode == TM_OPCODE) {
+            if (request.opcode == TM_OPCODE) {
                 close(fd_pipe_request);
                 return 0;   
             }
+            freerequest(&request);
         }
     }
     return 0;

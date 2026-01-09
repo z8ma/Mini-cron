@@ -35,13 +35,14 @@ int main(int argc, char *argv[]) {
     int opt;
     int createopt = 0;
     int consultopt = 0;
+    int ropt = 0;
     int lopt = 0;
     int xopt = 0;
     int oopt = 0;
     int eopt = 0;
     int popt = 0;
     int qopt = 0;
-    while ((opt = getopt(argc, argv, "c:s:p:i: m:H:d:n lx:o:e: P:q")) != -1) {
+    while ((opt = getopt(argc, argv, "c:s:p:i: m:H:d:n r: lx:o:e: P:q")) != -1) {
         switch (opt) {
             case 'c':
                 if (createopt) {
@@ -102,6 +103,7 @@ int main(int argc, char *argv[]) {
                     write(STDERR_FILENO, errmsg[4], strlen(errmsg[4]));
                     return 1;
                 }
+                if (ropt) return 1;
                 freestring(&minutes);
                 struct string m = {strlen(optarg), (uint8_t*) strdup(optarg)};
                 catstring(&minutes, m);
@@ -111,6 +113,7 @@ int main(int argc, char *argv[]) {
                     write(STDERR_FILENO, errmsg[4], strlen(errmsg[4]));
                     return 1;
                 }
+                if (ropt) return 1;
                 freestring(&hours);
                 struct string h = {strlen(optarg), (uint8_t*) strdup(optarg)};
                 catstring(&hours, h);
@@ -120,6 +123,7 @@ int main(int argc, char *argv[]) {
                     write(STDERR_FILENO, errmsg[4], strlen(errmsg[4]));
                     return 1;
                 }
+                if (ropt) return 1;
                 freestring(&daysofweek);
                 struct string d = {strlen(optarg), (uint8_t*) strdup(optarg)};
                 catstring(&daysofweek, d);
@@ -129,6 +133,7 @@ int main(int argc, char *argv[]) {
                     write(STDERR_FILENO, errmsg[4], strlen(errmsg[4]));
                     return 1;
                 }
+                if (ropt) return 1;
                 freestring(&minutes);
                 freestring(&hours);
                 freestring(&daysofweek);
@@ -136,6 +141,22 @@ int main(int argc, char *argv[]) {
                 catstring(&minutes, n);
                 catstring(&hours, n);
                 catstring(&daysofweek, n);
+                break;
+            case 'r':
+                if (createopt) {
+                    write(STDERR_FILENO, errmsg[2], strlen(errmsg[2]));
+                    return 1;
+                } else if (consultopt) {
+                    write(STDERR_FILENO, errmsg[3], strlen(errmsg[3]));
+                    return 1;
+                }
+                createopt = 1;
+                ropt = 1;
+                req.opcode = RM_OPCODE;
+                if (string_to_uint64((struct string) {strlen(optarg), (uint8_t*) strdup(optarg)} , &(req.content.taskid))) {
+                    write(STDERR_FILENO, errmsg[1], strlen(errmsg[1]));
+                    return 1;
+                }
                 break;
             case 'l':
                 if (consultopt && !lopt) {
@@ -240,18 +261,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-
-    if (minutes.length == 0) {
+    if (createopt && !ropt) {
+        if (minutes.length == 0) {
         catstring(&minutes, (struct string) {1, (uint8_t*) "*"});
-    }
-    if (hours.length == 0) {
-        catstring(&hours, (struct string) {1, (uint8_t*) "*"});
-    }
-    if (daysofweek.length == 0) {
-        catstring(&daysofweek, (struct string) {1, (uint8_t*) "*"});
-    }
-
-    if (createopt) {
+        }
+        if (hours.length == 0) {
+            catstring(&hours, (struct string) {1, (uint8_t*) "*"});
+        }
+        if (daysofweek.length == 0) {
+            catstring(&daysofweek, (struct string) {1, (uint8_t*) "*"});
+        }
         req.content.cr.task_timing.minutes = 0;
         req.content.cr.task_timing.hours = 0;
         req.content.cr.task_timing.daysofweek = 0;
