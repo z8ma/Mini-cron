@@ -80,7 +80,43 @@ int handle_creat_request(struct request req, struct reply *rbuf) {
 }
 
 int handle_combine_request(struct request req, struct reply *rbuf) {
-    // TODO fonction qui combine des taches dans task.h et renvoie l'id de la nouvelle tache
+    uint64_t taskid_be = 0;
+    int fd = open("last-taskid", O_RDWR | O_CREAT, 0644);
+    struct stat st;
+    if (fstat(fd, &st) < 0)
+        return 1;
+    if (st.st_size != 0) {
+        read(fd, &taskid_be, sizeof(uint64_t));
+    }
+    char path_tasksid[req.content.cr.content.combined.nbtasks][PATH_MAX];
+    for (uint64_t i = 0; i < req.content.cr.content.combined.nbtasks; i++) {
+        snprintf(path_tasksid[i], sizeof(path_tasksid), "tasks/%zu/", req.content.cr.content.combined.tasksid[i]);
+        if (!access(path_tasksid[i], F_OK) == 0) {
+            rbuf->anstype = ER_ANSTYPE;
+            rbuf->content.errcode = NF_ERRCODE;
+            return 0;
+        }
+    }
+    struct task task = {be64toh(taskid_be) + 1, req.content.cr.task_timing, {req.content.cr.content.combined.type, {}}};
+    char path_task[PATH_MAX];
+    snprintf(path_task, sizeof(path_task), "tasks/%zu/", task.taskid);
+    mkdirtask(path_task, &task);
+    rbuf->content.taskid = task.taskid;
+    taskid_be = htobe64(task.taskid);
+    strcat(path_task, "cmd/");
+    int len_path_task = strlen(path_task);
+    for (uint64_t i = 0; i < req.content.cr.content.combined.nbtasks; i++) {
+        int len_path_tasksid = strlen(path_tasksid[i]);
+        strcat(path_tasksid[i], "cmd/");
+        snprintf(path_task + len_path_task, sizeof(path_tasksid[i]) - len_path_task, "%zu", i);
+        rename(path_tasksid[i], path_task);
+        path_tasksid[i][len_path_tasksid] = '\0';
+        rmdirtask(path_tasksid[i]);
+    }
+    ftruncate(fd, 0);
+    lseek(fd, 0, SEEK_SET);
+    write(fd, &taskid_be, sizeof(uint64_t));
+    close(fd);
     return 0;
 }
 
