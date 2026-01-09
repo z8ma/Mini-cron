@@ -66,10 +66,9 @@ int handle_creat_request(struct request req, struct reply *rbuf) {
         read(fd, &taskid_be, sizeof(uint64_t));
     }
     struct task task = {be64toh(taskid_be) + 1, req.content.cr.task_timing, {SI_TYPE, {req.content.cr.content.args}}};
-    struct string path_task = {0, NULL};
-    catstring(&path_task, (struct string) {6, (uint8_t*) "tasks/"});
-    uint_to_string(task.taskid, &path_task);
-    mkdirtask((char*) path_task.data, &task);
+    char path_task[PATH_MAX];
+    snprintf(path_task, sizeof(path_task), "tasks/%zu/", task.taskid);
+    mkdirtask(path_task, &task);
     freestring(&path_task);
     rbuf->content.taskid = task.taskid;
     taskid_be = htobe64(task.taskid);
