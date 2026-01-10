@@ -48,7 +48,7 @@ int readdircmd(char *filename, struct command *cbuf) {
         int ret = readarguments(fd, &(cbuf->content.args));
         close(fd);
         return ret;
-    } else if (cbuf->type == SQ_TYPE) {
+    } else {
         struct dirent *entry;
         cbuf->content.combined.nbcmds = 0;
         char **names = NULL;
@@ -89,7 +89,7 @@ int readcmd(int fd, struct command *cbuf) {
     cbuf->type = be16toh(type_be);
     if (cbuf->type== SI_TYPE) {
         if (readarguments(fd, &(cbuf->content.args)) == 1) return 1;
-    } else if (cbuf->type == SQ_TYPE) {
+    } else {
         uint32_t nbcmds_be;
         if (read(fd, &nbcmds_be, sizeof(uint32_t))!= sizeof(uint32_t)) return 1;
         cbuf->content.combined.nbcmds = be32toh(nbcmds_be);
@@ -143,7 +143,7 @@ int mkdircmd(char *pathcmd, struct command *cbuf) {
 void freecmd(struct command *cbuf) {
     if (cbuf->type == SI_TYPE) {
         freearguments(&(cbuf->content.args));
-    } else if (cbuf->type == SQ_TYPE) {
+    } else {
         uint32_t host_nbcmds = cbuf->content.combined.nbcmds;
         for(int i = 0; i < host_nbcmds; i++) {
             freecmd(&(cbuf->content.combined.cmds[i]));
@@ -158,50 +158,143 @@ uint16_t executecmd(struct command *cbuf) {
     if (p < 0) {
         exit(1);
     } else if (p == 0) {
-        if (cbuf->type == SI_TYPE) {
-            exit(executearg(&cbuf->content.args));
-        } else if (cbuf->type == SQ_TYPE) {
-            uint16_t finalexit = 0;
-            uint32_t nbcmds_host = cbuf->content.combined.nbcmds;
-            for (uint32_t i = 0; i < nbcmds_host; i++) {
-                finalexit = executecmd(cbuf->content.combined.cmds + i);
-            }
-            exit(finalexit);
+        switch (cbuf->type) {
+            case SI_TYPE :
+                exit(executearg(&cbuf->content.args));
+                break;
+            case SQ_TYPE :
+                uint16_t finalexit = 0;
+                for (uint32_t i = 0; i < cbuf->content.combined.nbcmds; i++) {
+                    finalexit = executecmd(cbuf->content.combined.cmds + i);
+                }
+                exit(finalexit);
+                break;
+            case PL_TYPE : 
+                finalexit = 0;
+                int **fdpipe = malloc((cbuf->content.combined.nbcmds - 1) * sizeof(int*));
+                for (uint32_t i = 0; i < cbuf->content.combined.nbcmds - 1; i++) {
+                    fdpipe[i] = malloc(2 * sizeof(int));
+                    pipe(fdpipe[i]);
+                }
+                for (uint32_t i = 0; i < cbuf->content.combined.nbcmds; i++) {
+                    p = fork();
+                    if (p < 0) {
+                        exit(1);
+                    } 
+                    if (p == 0) {
+                        if (i > 0) {
+                            dup2(fdpipe[i-1][0], STDIN_FILENO);
+                        }
+                        if (i < cbuf->content.combined.nbcmds - 1) {
+                            dup2(fdpipe[i][1], STDOUT_FILENO);
+                        }
+
+                        for (int j = 0; j < cbuf->content.combined.nbcmds - 1; j++) {
+                            close(fdpipe[j][0]);
+                            close(fdpipe[j][1]);
+                            free(fdpipe[j]);
+                        }
+                        free(fdpipe);
+                        finalexit = executecmd(cbuf->content.combined.cmds + i);
+                        exit(finalexit);
+                    }
+                }
+                for (int i = 0; i < cbuf->content.combined.nbcmds - 1; i++) {
+                    close(fdpipe[i][0]);
+                    close(fdpipe[i][1]);
+                    free(fdpipe[i]);
+                }
+                free(fdpipe);
+                waitpid(p, (int*) &finalexit, 0);
+                for (int i = 0; i < cbuf->content.combined.nbcmds - 1; i++) {
+                    wait(NULL);
+                }
+                exit(finalexit);
+                break;
+            case IF_TYPE :
+                finalexit = 0;
+                if(executecmd(cbuf->content.combined.cmds) == 0) {
+                    finalexit = executecmd(cbuf->content.combined.cmds + 1);
+                } else if (cbuf->content.combined.nbcmds > 2) {
+                    finalexit = executecmd(cbuf->content.combined.cmds + 2);
+                }
+                exit(finalexit);
+                break;
         }
         exit(1);
-    } else {
-        int status;
-        wait(&status);
-        if (WIFEXITED(status)) {
-            return (uint16_t) WEXITSTATUS(status);
-        }
-        return 0xffff;
     }
+    int status;
+    wait(&status);
+    if (WIFEXITED(status)) {
+        return (uint16_t) WEXITSTATUS(status);
+    }
+    return 0xffff;
+    
 }
 
 int command_to_string(struct command c,struct string *s) {
-    if (c.type == SI_TYPE) {
-        if (arguments_to_string(c.content.args, s) == 1) return 1;
-    } else {
-        struct string start = {1, (uint8_t*) "("};
-        struct string space = {1, (uint8_t*) " "};
-        struct string semicolon = {3, (uint8_t*) " ; "};
-        struct string end = {1, (uint8_t*) ")"};
-
-        for (int i = 0; i< c.content.combined.nbcmds; i++) {
-            if (c.content.combined.cmds[i].type == SQ_TYPE) {
-                if (catstring(s, start) == 1) return 1;
+    struct string start = {1, (uint8_t*) "("};
+    struct string space = {1, (uint8_t*) " "};
+    struct string semicolon = {3, (uint8_t*) " ; "};
+    struct string end = {1, (uint8_t*) ")"};
+    struct string pipe = {3, (uint8_t*) " | "};
+    struct string ifs = {2, (uint8_t*) "if"};
+    struct string thens = {4, (uint8_t*) "then"};
+    struct string elses = {4, (uint8_t*) "else"};
+    struct string fis = {2, (uint8_t*) "fi"};
+    switch (c.type) {
+        case SI_TYPE :
+            if (arguments_to_string(c.content.args, s) == 1) return 1;
+            break;
+        case SQ_TYPE :
+            for (int i = 0; i< c.content.combined.nbcmds; i++) {
+                if (c.content.combined.cmds[i].type == SQ_TYPE) {
+                    if (catstring(s, start) == 1) return 1;
+                }
+                catstring(s, space);
+                if (command_to_string(c.content.combined.cmds[i], s) == 1) return 1;
+                catstring(s, space);
+                if (c.content.combined.cmds[i].type == SQ_TYPE) {
+                    if (catstring(s, end) == 1) return 1;
+                }
+                if (i != c.content.combined.nbcmds-1) {
+                    if (catstring(s, semicolon) == 1) return 1;
+                }
             }
-            catstring(s, space);
-            if (command_to_string(c.content.combined.cmds[i], s) == 1) return 1;
-            catstring(s, space);
-            if (c.content.combined.cmds[i].type == SQ_TYPE) {
-                if (catstring(s, end) == 1) return 1;
+            break;
+        case PL_TYPE : 
+            if (catstring(s, start) == 1) return 1;
+            if (catstring(s, space) == 1) return 1;
+            for (int i = 0; i< c.content.combined.nbcmds; i++) {
+                if (command_to_string(c.content.combined.cmds[i], s) == 1) return 1;
+                if (i != c.content.combined.nbcmds-1) {
+                    if (catstring(s, pipe) == 1) return 1;
+                }
             }
-            if (i != c.content.combined.nbcmds-1) {
-                if (catstring(s, semicolon) == 1) return 1;
+            if (catstring(s, space) == 1) return 1;
+            if (catstring(s, end) == 1) return 1;
+            break;
+        case IF_TYPE : 
+            if (catstring(s, start) == 1) return 1;
+            if (catstring(s, space) == 1) return 1;
+            if (catstring(s, ifs) == 1) return 1;
+            if (catstring(s, space) == 1) return 1;
+            if (command_to_string(c.content.combined.cmds[0], s) == 1) return 1;
+            if (catstring(s, semicolon) == 1) return 1;
+            if (catstring(s, thens) == 1) return 1;
+            if (catstring(s, space) == 1) return 1;
+            if (command_to_string(c.content.combined.cmds[1], s) == 1) return 1;
+            if (c.content.combined.nbcmds > 2) {
+                if (catstring(s, space) == 1) return 1;
+                if (catstring(s, elses) == 1) return 1;
+                if (catstring(s, space) == 1) return 1;
+                if (command_to_string(c.content.combined.cmds[2], s) == 1) return 1;
             }
-        }
+            if (catstring(s, semicolon) == 1) return 1;
+            if (catstring(s, fis) == 1) return 1;
+            if (catstring(s, space) == 1) return 1;
+            if (catstring(s, end) == 1) return 1;
+            break;
     }
     return 0;
 }
