@@ -27,7 +27,7 @@ int readrequest(int fdrequest, struct request *rbuf) {
 
             uint32_t nbtasks_be;
             if (read(fdrequest, &nbtasks_be, sizeof(uint32_t)) < 0) return 1;
-            rbuf->content.cr.content.combined.nbtasks = be64toh(nbtasks_be);
+            rbuf->content.cr.content.combined.nbtasks = be32toh(nbtasks_be);
 
             uint64_t *tasksid_be = malloc((rbuf->content.cr.content.combined.nbtasks) * sizeof(uint64_t));
             if (read(fdrequest, tasksid_be, rbuf->content.cr.content.combined.nbtasks * sizeof(uint64_t)) < 0) return 1;

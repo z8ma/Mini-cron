@@ -119,9 +119,17 @@ int handle_combine_request(struct request req, struct reply *rbuf) {
 }
 
 int handle_remove_request(struct request req, struct reply *rbuf) {
+    struct stat st;
     char path_task[PATH_MAX];
-    snprintf(path_task, sizeof(path_task), "task/%zu", req.content.taskid);
-    // TODO fonction qui supprime une tache dans task.h et renvoie si la supreesion à échoué ou non
+    snprintf(path_task, sizeof(path_task), "tasks/%zu/", req.content.taskid);
+    if (stat(path_task, &st) < 0) {
+        rbuf->anstype = ER_ANSTYPE;
+        rbuf->content.errcode = NF_ERRCODE;
+        return 0;
+    }
+    rmdirtask(path_task);
+    rbuf->anstype = OK_ANSTYPE;
+    rbuf->content.taskid =  req.content.taskid;
     return 0;
 }
 
@@ -169,7 +177,7 @@ int handle_std_request(struct request req, struct reply *rbuf) {
             rbuf->anstype = ER_ANSTYPE;
             rbuf->content.errcode = NR_ERRCODE;
             return 0;
-    }
+        }
     } else {
         snprintf(path_std + len, sizeof(path_std) - len, "stderr");
         if (stat(path_std, &st) < 0) {
@@ -225,10 +233,9 @@ int handle_reply(struct reply rep, uint16_t opcode, struct string *msg) {
                 break;
             case CR_OPCODE :
             case CB_OPCODE :
+            case RM_OPCODE :
                 uint_to_string(rep.content.taskid, msg);
                 catstring(msg, rtl);
-                break;
-            case RM_OPCODE :
                 break;
             case TX_OPCODE :
                 times_exitcodes_to_string(rep.content.tec, msg);
@@ -241,6 +248,15 @@ int handle_reply(struct reply rep, uint16_t opcode, struct string *msg) {
                 break;
         }
     } else {
+        dup2(STDERR_FILENO, STDOUT_FILENO);
+        switch (rep.content.errcode) {
+            case NF_ERRCODE :
+                catstring(msg, (struct string) {strlen("Identifiant de tâche non trouvé\n"), (uint8_t*) "Identifiant de tâche non trouvé\n"});
+                break;
+            case NR_ERRCODE :
+                catstring(msg, (struct string) {strlen("La tâche n'a pas encore été exécutée au moins une fois\n"), (uint8_t*) "La tâche n'a pas encore été exécutée au moins une fois\n"});
+                break;
+        }
         ret = 1;
     }   
     return ret;

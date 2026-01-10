@@ -57,6 +57,7 @@ int run_to_string(struct run r, struct string *s) {
 
     uint_to_string((uint64_t)(tm->tm_year + 1900), s);
     catstring(s, dash);
+    if (tm->tm_mon < 10) uint_to_string(0, s);
     uint_to_string((uint64_t)(tm->tm_mon + 1), s);
     catstring(s, dash);
     if (tm->tm_mday < 10) uint_to_string(0, s);

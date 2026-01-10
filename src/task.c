@@ -11,13 +11,58 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <string.h>
+#include <dirent.h>
 
 int readtask(int fd, struct task *tbuf){
     uint64_t taskid_be;
     if (read(fd, &taskid_be, sizeof(uint64_t)) < 0) return 1;
     tbuf->taskid = be64toh(taskid_be);
     if (readtiming(fd, &(tbuf->task_timing)) == 1) return 1;
-    if (readcmd_fd(fd, &(tbuf->task_command)) == 1) return 1;
+    if (readcmd(fd, &(tbuf->task_command)) == 1) return 1;
+    return 0;
+}
+
+int mkdirtask(char *path_task, struct task *tbuf) {
+    if (mkdir(path_task, 0744) < 0) return 1;
+    char pathfic[PATH_MAX];
+    snprintf(pathfic, sizeof(pathfic), "%s/cmd", path_task);
+    mkdircmd(pathfic, &tbuf->task_command);
+    pathfic[strlen(path_task)] = '\0';
+    strcat(pathfic, "/timing");
+    int fd = creat(pathfic, 0744);
+    writetiming(fd, &tbuf->task_timing);
+    close(fd);
+    pathfic[strlen(path_task)] = '\0';
+    strcat(pathfic, "/times-exitcodes");
+    fd = creat(pathfic, 0744);
+    close(fd);
+    return 0;
+}
+
+int rmdirtask(char *path_task) {
+    int len = strlen(path_task);
+    char path_fic[strlen(path_task) + NAME_MAX];
+    strcpy(path_fic, path_task);
+    DIR *dirp = opendir(path_task);
+    if (!dirp) return 1;
+
+    struct dirent *entry;
+    while ((entry = readdir(dirp))) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if ((entry->d_type == DT_DIR)) {
+            strcat(path_fic, "/");
+            strcat(path_fic, entry->d_name);
+            rmdirtask(path_fic);
+            path_fic[len] = '\0';
+        } else {
+            strcat(path_fic, "/");
+            strcat(path_fic, entry->d_name);
+            unlink(path_fic);
+            path_fic[len] = '\0';
+        }
+    }
+    rmdir(path_task);
     return 0;
 }
 
@@ -42,14 +87,14 @@ int readtask_timing(char *path_task, struct timing *task_timing) {
 int readtask_command(char *path_task, struct command *task_command) {
     char path_task_command[PATH_MAX];
     snprintf(path_task_command, sizeof(path_task_command), "%s/cmd", path_task);
-    if (readcmd_path(path_task_command, task_command) == 1) return 1;
+    if (readdircmd(path_task_command, task_command) == 1) return 1;
     return 0;
 }
 
 int redirectstdout(char *path_task) {
     char path_task_stdout[PATH_MAX];
     snprintf(path_task_stdout, sizeof(path_task_stdout), "%s/stdout", path_task);
-    ssize_t fd_stdout = open(path_task_stdout, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    int fd_stdout = open(path_task_stdout, O_WRONLY | O_TRUNC | O_CREAT, 0644);
     if (fd_stdout < 0) return 1;
     if (dup2(fd_stdout, STDOUT_FILENO) == -1) return 1;
     close(fd_stdout);
@@ -59,7 +104,7 @@ int redirectstdout(char *path_task) {
 int redirectstderr(char *path_task) {
     char path_task_stderr[PATH_MAX];
     snprintf(path_task_stderr, sizeof(path_task_stderr), "%s/stderr", path_task);
-    ssize_t fd_stderr = open(path_task_stderr, O_WRONLY | O_TRUNC| O_CREAT, 0644);
+    int fd_stderr = open(path_task_stderr, O_WRONLY | O_TRUNC| O_CREAT, 0644);
     if (fd_stderr < 0) return 1;
     if (dup2(fd_stderr, STDERR_FILENO) == -1) return 1;
     close(fd_stderr);
