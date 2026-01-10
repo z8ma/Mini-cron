@@ -170,7 +170,6 @@ int string_to_timing(struct string minutes, struct string hours, struct string d
         t->minutes = 0;
         minutes.length = 0;
     }
-    t->minutes = 0;
     int pred = -1;
     int duration = 0;
     int value = -1;
@@ -200,11 +199,9 @@ int string_to_timing(struct string minutes, struct string hours, struct string d
             value = minutes.data[i] - '0';
         }
         if (duration) {
-            printf("%d\n", pred);
             for (int j = pred + 1; j < value; j++) {
                 t->minutes |= (1ULL << j);
             }
-            printf("%d\n", value);
             duration = 0;
         }
         t->minutes = t->minutes | (1ULL << value);
@@ -294,7 +291,6 @@ int string_to_timing(struct string minutes, struct string hours, struct string d
             value = daysofweek.data[i] - '0';
         }
         if (duration) {
-            printf("%d\n", pred);
             for (int j = pred + 1; j < value; j++) {
                 t->daysofweek |= (1 << j);
             }
