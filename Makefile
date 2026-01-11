@@ -13,6 +13,9 @@ tadmor: src/tadmor.c $(OBJ)
 erraid: src/erraid.c $(OBJ)
 	$(CC) $(CFLAGS) src/erraid.c $(OBJ) -o erraid
 
+
+build: $(OBJ)
+
 build/%.o: src/%.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
