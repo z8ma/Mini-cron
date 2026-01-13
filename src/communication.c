@@ -78,6 +78,7 @@ int handle_creat_request(struct request req, struct reply *rbuf) {
 }
 
 int handle_combine_request(struct request req, struct reply *rbuf) {
+    rbuf->anstype = OK_ANSTYPE;
     uint64_t taskid_be = 0;
     int fd = open("last-taskid", O_RDWR | O_CREAT, 0644);
     struct stat st;
