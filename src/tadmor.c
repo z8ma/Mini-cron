@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
 
         if (createopt && optind < argc) {
             if (req.opcode == CR_OPCODE) {
-                if (('a' <= argv[optind][0] && argv[optind][0] <= 'z') || ('A' <= argv[optind][0] && argv[optind][0] <= 'Z')) {
+                if (argv[optind][0] != '-') {
                     break;
                 }
             } else if (req.opcode == CB_OPCODE && req.content.cr.content.combined.nbtasks == 0) {
