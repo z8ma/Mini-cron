@@ -1,7 +1,4 @@
-# Projet SY5-25-26
-
-
-
+# Projet Mini Cron
 # Erraid & Tadmor - Planificateur de tâches (Projet Système)
 
 Ce projet implémente un système complet de planification de tâches composé de deux entités :
