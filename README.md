@@ -10,9 +10,9 @@ Ce projet implémente un système complet de planification de tâches composé d
 
 ## Auteurs
 
-CHOUX Julien - 22302567 - choux
-MZIOUID Souhaile - 22214281 - mziouid
-SOKOU Leny - 22310392 - sokou
+CHOUX Julien
+MZIOUID Souhaile
+SOKOU Leny
 
 ## Compilation
 
