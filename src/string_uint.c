@@ -31,7 +31,6 @@ int writestring(int fd, struct string *sbuf) {
 
     ssize_t nbwritetotal = 0;
     ssize_t nbwrite = 0;
-    if ()
     while (nbwritetotal != (ssize_t)sbuf->length) {
         nbwrite = write(fd, sbuf->data + nbwritetotal, sbuf->length * sizeof(uint8_t) - nbwritetotal);
         if (nbwrite < 0) return 1;
