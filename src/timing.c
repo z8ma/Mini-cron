@@ -2,7 +2,7 @@
 #include <string_uint.h>
 
 #include <stdint.h>
-#include <endian.h>
+#include "endian_compat.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>

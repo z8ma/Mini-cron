@@ -2,6 +2,7 @@
 #define ARGUMENTS_H
 
 #include "string_uint.h"
+#include "endian_compat.h"
 #include <stdint.h>
 
 
