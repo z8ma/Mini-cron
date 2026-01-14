@@ -147,14 +147,14 @@ int readstd(int fd, struct string *output) {
     output->length = (uint32_t)size;
     
     if (size > 0) {
-        output->data = malloc(size);
+        if (size > 0xffffffff) output->length = 0xffffffff;
+            output->data = malloc(output->length * sizeof(uint8_t));
         if (!output->data) {
             perror("erreur allocation");
             output->length = 0;
             return 1; 
         }
-        
-        if (read(fd, output->data, size) != size) {
+        if (read(fd, output->data, output->length) != output->length) {
             perror("erreur lecture");
             free(output->data); 
             output->data = NULL;
